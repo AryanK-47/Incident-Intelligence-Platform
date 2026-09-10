@@ -2,7 +2,7 @@ from enum import Enum
 import uuid
 from datetime import datetime
 from typing import Annotated
-from pydantic import BaseModel,Field
+from pydantic import BaseModel, ConfigDict, Field
 
 class Severity(str,Enum):
     SEV1="SEV1"
@@ -49,6 +49,7 @@ class IncidentUpdate(BaseModel):
         status : IncidentStatus | None =None
 
 class IncidentResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
 
     id: uuid.UUID
 

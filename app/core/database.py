@@ -15,4 +15,14 @@ engine=create_engine(database_url)
 class Base(DeclarativeBase):
     pass
 
-db_session=sessionmaker(bind=engine,autoflush=False,autocommit=False)
+SessionLocal=sessionmaker(bind=engine,autoflush=False,autocommit=False)
+
+
+def get_db():
+    db=SessionLocal()
+
+    try:
+        yield db
+    finally:
+        db.close()
+    
