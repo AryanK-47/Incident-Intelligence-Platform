@@ -1,4 +1,3 @@
-from fastapi import FastAPI
 import uuid
 from enum import Enum
 from sqlalchemy import select
@@ -7,9 +6,6 @@ from app.features.Incident.models import Incident
 from app.features.Incident.schemas import IncidentCreate,IncidentUpdate
 
 
-app=FastAPI()
-
-@app.post("/create")
 def create_incident(incident_data:Incident, db:Session,created_by:uuid.UUID)->Incident:
     new_data=Incident(
         title=incident_data.title,
@@ -23,7 +19,7 @@ def create_incident(incident_data:Incident, db:Session,created_by:uuid.UUID)->In
 
     return new_data
 
-@app.get("/incident/{incident.id}")
+
 def get_incident(db:Session,incident_id:uuid.UUID)->Incident | None:
     query=select(Incident).where(Incident.id==incident_id)
     result=db.execute(query)
@@ -40,5 +36,10 @@ def update_incident(db:Session, update_data:IncidentUpdate, incident:Incident):
 
         if isinstance(values,Enum):
             values=values.value
-            
+
         setattr(incident,fields,values)
+
+    db.commit()
+    db.refresh(incident)
+
+    return incident
