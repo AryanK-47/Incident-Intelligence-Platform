@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from app.features.users.models import User
+    from app.features.Incident.models import Incident
 
 class Comment(Base):
     __tablename__="comments"
@@ -33,5 +34,9 @@ class Comment(Base):
     )
 
     user : Mapped["User"] = relationship(
+        back_populates="comments"
+    )
+
+    incident : Mapped["Incident"] = relationship(
         back_populates="comments"
     )
