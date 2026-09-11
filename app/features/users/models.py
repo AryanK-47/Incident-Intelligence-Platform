@@ -1,6 +1,6 @@
 from app.core.database import Base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from datetime import datetime
+from datetime import datetime,timezone
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
@@ -13,19 +13,24 @@ if TYPE_CHECKING:
 
 class User(Base):
     __tablename__="users"
+
     id : Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
         default=uuid.uuid4
         )
     name : Mapped[str] = mapped_column(nullable=False)
+
     email : Mapped[str] = mapped_column(
         unique=True,
         nullable=False)
+    
     password_hash : Mapped[str] = mapped_column(nullable=False)
+
     created_at : Mapped[datetime] = mapped_column(
         nullable=False,
-        default=datetime.now)
+        default=datetime.now(timezone.utc))
+    
     deleted_at : Mapped[datetime | None] = mapped_column(default=None)
 
     roles : Mapped[list["Role"]] = relationship(

@@ -41,7 +41,7 @@ class Incident(Base):
         default="OPEN"
     )
 
-    cause: Mapped[str] = mapped_column(
+    cause: Mapped[str] | None = mapped_column(
         Text,
         nullable=True
     )
