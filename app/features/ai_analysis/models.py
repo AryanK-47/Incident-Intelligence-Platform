@@ -5,6 +5,10 @@ from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from datetime import datetime, timezone
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from app.features.Incident.models import Incident
+
 class AiAnalysis(Base):
     __tablename__="ai_analyses"
     id : Mapped[uuid.UUID] = mapped_column(
@@ -47,5 +51,7 @@ class AiAnalysis(Base):
         default=lambda: datetime.now(timezone.utc),
         nullable=False
     )
-
+    incident : Mapped["Incident"] = relationship(
+        back_populates="ai_analysis"
+    )
 
