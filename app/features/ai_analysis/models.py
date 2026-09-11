@@ -1,12 +1,12 @@
 from app.core.database import Base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import ForeignKey, String, Text, ARRAY
+from sqlalchemy import ForeignKey, String, Text, ARRAY, DateTime, Float
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 class AiAnalysis(Base):
-    __tablename__="ai_analysis"
+    __tablename__="ai_analyses"
     id : Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         primary_key=True,
@@ -36,14 +36,15 @@ class AiAnalysis(Base):
         nullable=False
     )
     confidence : Mapped[float] = mapped_column(
+        Float,
         nullable=False
     )
     model : Mapped[str] = mapped_column(
         String,
         nullable=False,
     )
-    created_at : Mapped[datetime] = mapped_column(
-        default=datetime.now,
+    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True),
+        default=lambda: datetime.now(timezone.utc),
         nullable=False
     )
 

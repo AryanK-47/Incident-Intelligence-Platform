@@ -26,7 +26,7 @@ class Incident(Base):
     )
 
     service: Mapped[str] = mapped_column(
-        String(20),
+        String(100),
         nullable=False
     )
 
@@ -36,12 +36,12 @@ class Incident(Base):
     )
 
     status: Mapped[str] = mapped_column(
-        String(15),
+        String(30),
         nullable=False,
         default="OPEN"
     )
 
-    cause: Mapped[str] | None = mapped_column(
+    cause: Mapped[str | None] = mapped_column(
         Text,
         nullable=True
     )

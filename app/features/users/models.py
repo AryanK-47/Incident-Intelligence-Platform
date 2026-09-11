@@ -1,6 +1,7 @@
 from app.core.database import Base
+from sqlalchemy import DateTime
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from datetime import datetime,timezone
+from datetime import datetime, timezone
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 
@@ -27,9 +28,9 @@ class User(Base):
     
     password_hash : Mapped[str] = mapped_column(nullable=False)
 
-    created_at : Mapped[datetime] = mapped_column(
+    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True),
         nullable=False,
-        default=datetime.now(timezone.utc))
+        default=lambda: datetime.now(timezone.utc))
     
     deleted_at : Mapped[datetime | None] = mapped_column(default=None)
 
