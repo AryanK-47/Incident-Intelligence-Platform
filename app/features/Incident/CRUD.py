@@ -14,8 +14,7 @@ def create_incident(incident_data:Incident, db:Session,created_by:uuid.UUID)->In
         severity=incident_data.severity
     )
     db.add(new_data)
-    db.commit()
-    db.refresh(new_data)
+    db.flush()
 
     return new_data
 
