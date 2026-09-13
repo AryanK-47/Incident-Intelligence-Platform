@@ -20,19 +20,26 @@ class User(Base):
         primary_key=True,
         default=uuid.uuid4
         )
+    
     name : Mapped[str] = mapped_column(nullable=False)
 
     email : Mapped[str] = mapped_column(
         unique=True,
-        nullable=False)
+        nullable=False
+        )
     
     password_hash : Mapped[str] = mapped_column(nullable=False)
 
-    created_at : Mapped[datetime] = mapped_column(DateTime(timezone=True),
+    created_at : Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
         nullable=False,
-        default=lambda: datetime.now(timezone.utc))
+        default=lambda: datetime.now(timezone.utc)
+    )
     
-    deleted_at : Mapped[datetime | None] = mapped_column(default=None)
+    deleted_at : Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        default=None
+    )
 
     roles : Mapped[list["Role"]] = relationship(
         secondary="user_roles",
