@@ -1,20 +1,21 @@
 from fastapi import APIRouter,Depends, HTTPException
-from app.features.users import schemas,service
+from app.features.users import service
+from app.features.users.schemas import UserResponse,UserCreate
 from app.core.database import get_db
 from sqlalchemy.orm import Session
 import uuid
 
 router = APIRouter(prefix="/users")
 
-@router.post("/", response_model=schemas.UserResponse)
+@router.post("/", response_model = UserResponse)
 def create_user(
-    user : schemas.UserCreate,
+    user : UserCreate,
     db: Session = Depends(get_db)
     ):
     
     return service.create_user(db,user)
 
-@router.get("/{user_id}", response_model=schemas.UserResponse)
+@router.get("/{user_id}", response_model = UserResponse)
 def get_user(
     user_id : uuid.UUID,
     db : Session = Depends(get_db)
@@ -30,7 +31,7 @@ def get_user(
     return user
 
 @router.delete("/{user_id}" ,
-            response_model= schemas.UserResponse
+            response_model = UserResponse
         )
 def delete_user(
     user_id : uuid.UUID,
