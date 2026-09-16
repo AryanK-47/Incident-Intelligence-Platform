@@ -23,3 +23,18 @@ def get_role(db : Session, role_id : uuid.UUID):
     result = db.execute(statement)
 
     return result.scalars().one_or_none()
+
+def update_role(db : Session , role_id : uuid.UUID, role_data : schemas.RoleUpdate):
+
+    role = db.get(Role, role_id)
+    if role is None: return role
+
+    data=role_data.model_dump(exclude_unset=True)
+
+    for field,value in data.items():
+        setattr(role, field ,value)
+
+    db.commit()
+    db.refresh(role)
+
+    return role
