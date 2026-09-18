@@ -37,4 +37,17 @@ def delete_user(db :Session , user_id : uuid.UUID):
     db.refresh(user)
 
     return user
+
+
+def update_user(db : Session , user_id : uuid.UUID, data : dict):
+    user = db.get(User,user_id)
+    if user is None: return user
+
     
+    for field, value in data.items():
+        setattr(user,field,value)
+
+    db.commit()
+    db.refresh(user)
+
+    return user
