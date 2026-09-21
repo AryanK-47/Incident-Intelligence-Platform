@@ -2,6 +2,7 @@ from __future__ import annotations
 from fastapi import HTTPException
 import uuid
 from . import CRUD
+from app.features.Incident_Events.CRUD import create_event
 from datetime import datetime,timezone
 from sqlalchemy.orm import Session
 from .schemas import IncidentCreate,IncidentUpdate,IncidentStatus
@@ -14,16 +15,25 @@ def create_incident(
     created_by: uuid.UUID
 ) -> Incident:
 
-    new_incident = CRUD.create_incident(db=db,
-                                        incident_data=incident_data,
-                                        created_by=created_by
-    )
+    try:
+        new_incident = CRUD.create_incident(db=db,
+                                            incident_data=incident_data,
+                                            created_by=created_by
+        )
+        create_event(db=db,
+                    incident_id=new_incident.id,
+                    actor_id=created_by,
+                    event_type="INCIDENT_CREATED")
 
-    db.commit()
-    db.refresh(new_incident)
-    
+        db.commit()
+        db.refresh(new_incident)
+        
 
-    return new_incident
+        return new_incident
+
+    except Exception:
+         db.rollback()
+         raise
 
 def get_incident(db:Session,incident_id:uuid.UUID)->Incident:
     incident=CRUD.get_incident(db=db, incident_id=incident_id)
