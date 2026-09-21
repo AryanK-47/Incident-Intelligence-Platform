@@ -18,7 +18,8 @@ def create_incident(incident_data:IncidentCreate,
         severity=incident_data.severity.value,
         created_by=created_by
     )
-    
+    db.add(new_data)
+    db.flush()
 
     return new_data
 
