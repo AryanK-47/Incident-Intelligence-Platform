@@ -40,5 +40,6 @@ def update_incident(incident_id:uuid.UUID,
         db=db,
         incident_id=incident_id,
         update_data=update_data,
+        actor_id=current_user.id
     )
 

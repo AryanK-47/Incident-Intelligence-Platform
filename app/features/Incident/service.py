@@ -1,8 +1,8 @@
 from __future__ import annotations
 from fastapi import HTTPException
 import uuid
-from . import CRUD
-from app.features.Incident_Events.CRUD import create_event
+from . import CRUD as IncidentCRUD
+from app.features.Incident_Events import CRUD as EventCRUD
 from datetime import datetime,timezone
 from sqlalchemy.orm import Session
 from .schemas import IncidentCreate,IncidentUpdate,IncidentStatus
@@ -16,14 +16,14 @@ def create_incident(
 ) -> Incident:
 
     try:
-        new_incident = CRUD.create_incident(db=db,
-                                            incident_data=incident_data,
-                                            created_by=created_by
+        new_incident = IncidentCRUD.create_incident(db=db,
+                                incident_data=incident_data,
+                                created_by=created_by
         )
-        create_event(db=db,
-                    incident_id=new_incident.id,
-                    actor_id=created_by,
-                    event_type="INCIDENT_CREATED")
+        EventCRUD.create_event(db=db,
+                       incident_id=new_incident.id,
+                       actor_id=created_by,
+                       event_type="INCIDENT_CREATED")
 
         db.commit()
         db.refresh(new_incident)
@@ -36,37 +36,53 @@ def create_incident(
          raise
 
 def get_incident(db:Session,incident_id:uuid.UUID)->Incident:
-    incident=CRUD.get_incident(db=db, incident_id=incident_id)
+
+    incident=IncidentCRUD.get_incident(db=db, incident_id=incident_id)
+
     if incident is None:
+
         raise HTTPException(status_code=404, detail="Incident not found")
     return incident
 
 
-def update_incident(incident_id:uuid.UUID,update_data:IncidentUpdate,db:Session)->Incident:
+def update_incident(incident_id:uuid.UUID,update_data:IncidentUpdate,db:Session,actor_id:uuid.UUID)->Incident:
 
 ## pehle incident ko db se lao
     try:
-        incident=CRUD.get_incident(db=db,
-                                incident_id=incident_id)
+        incident=IncidentCRUD.get_incident(db=db,
+                           incident_id=incident_id)
 
         if incident is None:
+
             raise HTTPException(status_code=404, detail="Incident not found")
 
         if update_data.status is not None:
-            current_status=IncidentStatus(incident.status)
-            valid_status(current_status,update_data.status)
-            
-        if(update_data.status is not None and 
-                current_status != IncidentStatus.RESOLVED and
-                update_data.status==IncidentStatus.RESOLVED):
-                    
-                    incident.resolved_at=datetime.now(timezone.utc)
+            current_status = IncidentStatus(incident.status)
 
-        ## db se lane ke bad isko ab update karo
-        CRUD.update_incident(db=db,
-                            update_data=update_data,
-                            incident=incident)
+            valid_status(current_status, update_data.status)
 
+        if (
+            update_data.status is not None
+            and current_status != IncidentStatus.RESOLVED
+            and update_data.status == IncidentStatus.RESOLVED
+        ):
+            incident.resolved_at = datetime.now(timezone.utc)
+
+        IncidentCRUD.update_incident(
+            db=db,
+            update_data=update_data,
+            incident=incident
+        )
+
+        if update_data.status is not None:
+            EventCRUD.create_event(
+                db=db,
+                incident_id=incident_id,
+                actor_id=actor_id,
+                event_type="STATUS_CHANGED",
+                old_value=current_status.value,
+                new_value=update_data.status.value
+            )
 
         db.commit()
         db.refresh(incident)
