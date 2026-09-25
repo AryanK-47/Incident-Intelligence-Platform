@@ -17,7 +17,8 @@ class AiAnalysis(Base):
         default=uuid.uuid4
     )
     incident_id : Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("incidents.id")
+        ForeignKey("incidents.id"),
+        unique=True
     )
     analysis_type : Mapped[str] = mapped_column(
         String,
