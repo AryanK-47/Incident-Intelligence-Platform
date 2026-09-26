@@ -4,6 +4,7 @@ import uuid
 from . import CRUD as IncidentCRUD
 from app.features.Incident_Events import CRUD as EventCRUD
 from datetime import datetime,timezone
+from .schemas import IncidentCreate, IncidentUpdate, IncidentStatus, Severity
 from sqlalchemy.orm import Session
 from .schemas import IncidentCreate,IncidentUpdate,IncidentStatus
 from .models import Incident
@@ -61,6 +62,11 @@ def update_incident(incident_id:uuid.UUID,update_data:IncidentUpdate,db:Session,
 
             valid_status(current_status, update_data.status)
 
+        if update_data.severity is not None:
+            current_sev=Severity(incident.severity)
+            
+
+
         if (
             update_data.status is not None
             and current_status != IncidentStatus.RESOLVED
@@ -74,7 +80,7 @@ def update_incident(incident_id:uuid.UUID,update_data:IncidentUpdate,db:Session,
             incident=incident
         )
 
-        if update_data.status is not None:
+        if update_data.status is not None :
             EventCRUD.create_event(
                 db=db,
                 incident_id=incident_id,
@@ -82,6 +88,15 @@ def update_incident(incident_id:uuid.UUID,update_data:IncidentUpdate,db:Session,
                 event_type="STATUS_CHANGED",
                 old_value=current_status.value,
                 new_value=update_data.status.value
+            )
+        if update_data.severity is not None and update_data.severity != current_sev:
+            EventCRUD.create_event(
+                db=db,
+                incident_id=incident_id,
+                actor_id=actor_id,
+                event_type="SEVERITY_CHANGED",
+                old_value=current_sev.value,
+                new_value=update_data.severity.value
             )
 
         db.commit()

@@ -8,15 +8,15 @@ from app.features.users.models import User
 
 from .schemas import LoginRequest, TokenResponse
 
-def get_token(db: Session, login:LoginRequest):
+def get_token(db: Session, email: str, password: str):
 
-    result = select(User).where(User.email==login.email)
+    result = select(User).where(User.email == email)
     query = db.execute(result).scalar_one_or_none()
 
     if query is None or query.deleted_at is not None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
-    if not verify_password(login.password, query.password_hash):
+    if not verify_password(password, query.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED)
 
     token = create_access_token(str(query.id))
