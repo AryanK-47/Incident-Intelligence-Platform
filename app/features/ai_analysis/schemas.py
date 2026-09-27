@@ -1,6 +1,13 @@
 from pydantic import Field, BaseModel,ConfigDict
 import uuid
-from datetime import datetime
+from app.features.ai_analysis.versions.schemas import VersionCreate, VersionResponse
+
+
+class AiAnalysisCreate(BaseModel):
+    version : VersionCreate = Field(
+            description="All the required data of the current version"
+        )
+
 
 class AiAnalysisResponse(BaseModel):
 
@@ -11,36 +18,16 @@ class AiAnalysisResponse(BaseModel):
                     )
 
     incident_id : uuid.UUID = Field(...,
-                                    description="Incident id"
-                                )
-    
-    analysis_type : str = Field(...,
-                                description="type of analysis"
-                            )
-    
-    root_cause : list[str] =Field(...,
-                                description="root cause of incident"
-                            )
-    
-    suggested_remediation : list[str] = Field(...,
-                                            description="Suggested remediations "
+                                            description="Incident id"
                                         )
-    impact_analysis : str = Field(...,
-                                description="analysis of impact caused by incident"
-                            )
+
+    version : VersionResponse = Field(
+            description="All the required data of the current version"
+        )
     
-    model : str = Field(..., description="model")
-
-    created_at : datetime
-
-    root_cause_analysis : str = Field(...,
-                                    description="analysis of root cause of incident"
+    current_version : int = Field(...,
+                                description="Latest version of analysis for the related incident",
+                                ge =1
                                 )
-    
-    confidence : float = Field(...,
-                            description="confidence in analysis",
-                            ge=0.0,
-                            le=1.0
-                        )
 
 

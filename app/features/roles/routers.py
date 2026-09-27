@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException, Depends
 from sqlalchemy.orm import Session
 from app.core.database import get_db
-from app.features.roles.schemas import RoleCreate,RoleResponse
+from app.features.roles.schemas import RoleCreate,RoleResponse, RoleUpdate
 from app.features.roles import service
 import uuid
 
@@ -28,4 +28,18 @@ def get_role (
         )
 
     return role
+
+@router.patch("/{role_id}", response_model= RoleResponse)
+def update_role(role_id : uuid.UUID,
+                role_data : RoleUpdate,
+                db : Session = Depends(get_db)
+            ):
+    role = service.update_role(db, role_id, role_data)
+    if role is None:
+        raise HTTPException(
+            status =404,
+            detail="Role does not exist")
+
+    return role
+
 

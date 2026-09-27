@@ -3,7 +3,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID
 import uuid
 from sqlalchemy import ForeignKey
-from datetime import datetime
+from datetime import datetime, timezone
 
 from typing import TYPE_CHECKING
 
@@ -30,7 +30,7 @@ class Comment(Base):
     )
     created_at : Mapped[datetime] = mapped_column(
         nullable=False,
-        default= datetime.now
+        default=lambda: datetime.now(timezone.utc)
     )
 
     user : Mapped["User"] = relationship(

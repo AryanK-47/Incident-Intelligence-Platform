@@ -44,7 +44,7 @@ class IncidentUpdate(BaseModel):
         severity: Severity | None=None
 
         cause: Annotated[
-             str | None, Field(default=None,min_length=5)]
+            str | None, Field(default=None,min_length=5)]
 
         status : IncidentStatus | None =None
 

@@ -4,8 +4,13 @@ from datetime import datetime, timezone
 from sqlalchemy import DateTime, ForeignKey, String, Text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from app.features.comments.models import Comment
 from app.core.database import Base
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING :
+    from app.features.ai_analysis.models import AiAnalysis
+    from app.features.comments.models import Comment
+
 
 
 class Incident(Base):
@@ -65,6 +70,11 @@ class Incident(Base):
     )
     comments: Mapped[list["Comment"]] = relationship(
     back_populates="incident"
+    )
+
+    ai_analysis  : Mapped["AiAnalysis | None "] = relationship(
+        back_populates="incident",
+        uselist=False
     )
 
 
