@@ -12,8 +12,8 @@ from app.features.comments.models import Comment
 from app.features.ai_analysis.models import AiAnalysis
 from app.features.Incident.models import Incident
 from app.features.Incident_Events.models import Incident_Events
-from app.features.Incident.models import Incident
 from app.features.Incident_Assignee.models import IncidentAssignee
+from app.features.ai_analysis.versions.models import AiAnalysisVersion
 
 
 config = context.config
