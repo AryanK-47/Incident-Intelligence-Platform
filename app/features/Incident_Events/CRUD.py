@@ -26,5 +26,14 @@ def create_event(
     db.flush()
 
     return event
+
+def get_events_by_incidents(db:Session,
+                            incident_id:uuid.UUID,
+                            )->list[Incident_Events]:
+    query=select(Incident_Events).where(Incident_Events.incident_id==incident_id).order_by(Incident_Events.created_at)
+
+    result=db.execute(query)
+
+    return list(result.scalars().all())
     
     
