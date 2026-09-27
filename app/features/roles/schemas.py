@@ -18,3 +18,6 @@ class RoleResponse(RoleBase):
     id : uuid.UUID = Field(...,
                         description="Id of role"
                     )
+
+class RoleUpdate(BaseModel):
+    name : str | None = None
