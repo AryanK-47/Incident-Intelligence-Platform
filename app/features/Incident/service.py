@@ -141,3 +141,20 @@ def valid_status(current_status:IncidentStatus,new_status:IncidentStatus):
             status_code=400,
             detail=f"Invalid status transition: "
                    f"{current_status.value} -> {new_status.value}")
+
+def get_incidents(
+    db: Session,
+    page: int,
+    page_size: int,
+    status: str | None = None,
+    severity: str | None = None,
+    service: str | None = None,
+):
+    return IncidentCRUD.get_incidents(
+        db=db,
+        page=page,
+        page_size=page_size,
+        status=status,
+        severity=severity,
+        service=service,
+    )

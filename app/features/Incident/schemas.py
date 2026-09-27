@@ -70,3 +70,12 @@ class IncidentResponse(BaseModel):
     created_at: datetime
 
     resolved_at: datetime | None
+
+class IncidentListResponse(BaseModel):
+    items: list[IncidentResponse]
+
+    page: int
+
+    page_size: int
+    
+    total: int

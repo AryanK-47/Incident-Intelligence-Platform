@@ -1,7 +1,7 @@
 import uuid
 from enum import Enum
 
-from sqlalchemy import select
+from sqlalchemy import select,func
 from sqlalchemy.orm import Session
 
 from app.features.Incident.models import Incident
@@ -49,3 +49,60 @@ def update_incident(db:Session,
     db.flush()
 
     return incident
+
+
+def get_incidents(db:Session,
+                  page:int,
+                  page_size:int,
+                  status: str | None = None,
+                  severity: str | None = None,
+                  service:str | None =None,):
+
+    query=select(Incident)
+
+    if status is not None:
+        if isinstance(status, Enum):
+            status = status.value
+        query=query.where(Incident.status==status)
+
+    if severity is not None:
+        if isinstance(severity, Enum):
+            severity = severity.value
+        query=query.where(Incident.severity==severity)
+
+    if service is not None:
+        if isinstance(service, Enum):
+            service = service.value
+        query=query.where(Incident.service==service)
+
+
+    query=( 
+        query.order_by(Incident.created_at.desc()).offset( (page-1) * page_size).limit(page_size)
+    )
+
+    result=db.execute(query)
+
+    incidents=result.scalars().all()
+
+    count_query=select(func.count()).select_from(Incident)
+
+    if status is not None:
+        if isinstance(status, Enum):
+            status = status.value
+        count_query=count_query.where(Incident.status==status)
+    
+    if severity is not None:
+        if isinstance(severity, Enum):
+            severity = severity.value
+        count_query=count_query.where(Incident.severity==severity)
+    
+    if service is not None:
+        if isinstance(service, Enum):
+            service = service.value
+        count_query=count_query.where(Incident.service==service)
+
+    total=db.execute(count_query).scalar_one()
+
+    return incidents,total
+
+                    
