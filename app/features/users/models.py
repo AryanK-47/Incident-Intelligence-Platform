@@ -1,15 +1,17 @@
-from app.core.database import Base
+from __future__ import annotations
+
+import uuid
 from sqlalchemy import DateTime
-from sqlalchemy.orm import Mapped, mapped_column, relationship
+from app.core.database import Base
 from datetime import datetime, timezone
 from sqlalchemy.dialects.postgresql import UUID
-import uuid
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.features.roles.models import Role
     from app.features.comments.models import Comment
+    from app.features.user_roles.models import UserRole
 
 
 class User(Base):
@@ -41,9 +43,9 @@ class User(Base):
         default=None
     )
 
-    roles : Mapped[list["Role"]] = relationship(
-        secondary="user_roles",
-        back_populates="users"
+    user_roles : Mapped[list["UserRole"]] = relationship(
+        back_populates="user",
+        cascade= "all, delete-orphan"
     )
 
     comments : Mapped[list["Comment"]] = relationship(

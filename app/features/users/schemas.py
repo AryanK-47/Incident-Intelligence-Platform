@@ -40,6 +40,10 @@ class UserCreate(UserBase):
                         description="The password of the user"
                     )
 
+    role : str = Field(...,
+                        description="Role assigned to the user"
+                    )
+
     @field_validator('password')
     @classmethod
     def password_validation(cls, value: str) -> str:
@@ -49,6 +53,11 @@ class UserResponse(UserBase):
     id :uuid.UUID = Field(...,
                         description="Id of user"
                     )
+
+    roles: list[str] = Field(
+                            default_factory=list,
+                            description="Roles assigned to user"
+                        )
 
 class UserUpdate(BaseModel):
     model_config = ConfigDict(from_attributes=True)

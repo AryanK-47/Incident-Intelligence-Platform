@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 from app.core.database import Base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy.dialects.postgresql import UUID

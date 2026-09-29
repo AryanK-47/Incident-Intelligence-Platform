@@ -1,5 +1,8 @@
 from fastapi import FastAPI
 
+#Load and register models in SQLAlchemy registry
+from app.core import models
+
 # routers...
 from app.features.Incident.routers import router as incident_router
 from app.features.users.routers import router as user_router

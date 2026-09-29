@@ -1,3 +1,4 @@
+from __future__ import annotations
 import uuid
 from datetime import datetime, timezone
 
@@ -72,7 +73,7 @@ class Incident(Base):
     back_populates="incident"
     )
 
-    ai_analysis  : Mapped["AiAnalysis | None "] = relationship(
+    ai_analysis  : Mapped[AiAnalysis | None] = relationship(
         back_populates="incident",
         uselist=False
     )
