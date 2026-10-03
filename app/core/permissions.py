@@ -57,5 +57,5 @@ def require_user_or_admin(
             detail="You can only access your own user profile."
         )
 
-    #if current user is asking for its profile
+    #user other than admin
     return current_user

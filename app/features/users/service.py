@@ -7,8 +7,20 @@ from sqlalchemy.exc import IntegrityError
 from app.features.users.models import User
 from app.features.users import crud
 from app.core.security import hash_password
-from app.features.users.schemas import UserCreate, UserUpdate, UserResponse
+from app.features.users.schemas import UserCreate, UserUpdate, UserResponse, RoleUserResponse
 
+
+# User + roles = User Response
+def build_user_response(user : User) -> RoleUserResponse:
+    return RoleUserResponse(
+        id= user.id,
+        name = user.name,
+        email=user.email,
+        roles = [
+            user_role.role.name
+            for user_role in user.user_roles
+        ]
+    )
 
 def create_user(db : Session , user : UserCreate):
     hashed_password = hash_password(user.password)
@@ -41,11 +53,13 @@ def create_user(db : Session , user : UserCreate):
 
 
 def get_user(db : Session , user_id : uuid.UUID):
-    return crud.get_user(db, user_id)
+    user = crud.get_user(db, user_id)
+    return build_user_response(user)
 
 
 def delete_user(db : Session , user_id : uuid.UUID):
-    return crud.delete_user(db,user_id)
+    user = crud.delete_user(db,user_id)
+    return user
 
 
 def update_user(db:Session, user_id : uuid.UUID, user_data : UserUpdate):
@@ -56,16 +70,3 @@ def update_user(db:Session, user_id : uuid.UUID, user_data : UserUpdate):
         del data["password"]
 
     return crud.update_user(db, user_id, data)
-
-
-# User + roles = User Response
-def build_user_response(user : User) -> UserResponse:
-    return UserResponse(
-        id= user.id,
-        name = user.name,
-        email=user.email,
-        roles = [
-            user_role.role.name
-            for user_role in user.user_roles
-        ]
-    )
