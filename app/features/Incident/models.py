@@ -73,7 +73,9 @@ class Incident(Base):
     back_populates="incident"
     )
 
-    ai_analysis  : Mapped[AiAnalysis | None] = relationship(
+
+    ai_analysis  : Mapped["AiAnalysis | None "] = relationship(
+        "AiAnalysis",
         back_populates="incident",
         uselist=False
     )

@@ -1,6 +1,7 @@
 import uuid
 from enum import Enum
-
+import json
+from app.core.redis import redis_client, build_incident_list_cache_key
 from sqlalchemy import select,func
 from sqlalchemy.orm import Session
 
@@ -25,10 +26,26 @@ def create_incident(incident_data:IncidentCreate,
 
 
 def get_incident(db:Session,incident_id:uuid.UUID)->Incident | None:
+    cache_key= f"incident:{incident_id}:status"
+    cached_status=redis_client.get(cache_key)
+
+    if cached_status:
+        print("Cache HIT")
+    else:
+        print("Cache MISS")
+
+    
     query=select(Incident).where(Incident.id==incident_id)
     result=db.execute(query)
 
     info=result.scalar_one_or_none()
+
+    if info is not None:
+        redis_client.set(
+            cache_key,
+            info.status,
+            ex=30
+        )
 
     return info
 

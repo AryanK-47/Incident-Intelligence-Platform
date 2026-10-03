@@ -3,8 +3,10 @@ from fastapi import HTTPException
 import uuid
 from . import CRUD as IncidentCRUD
 from app.features.Incident_Events import CRUD as EventCRUD
+import json
+from app.core.redis import redis_client, build_incident_list_cache_key
 from datetime import datetime,timezone
-from .schemas import IncidentCreate, IncidentUpdate, IncidentStatus, Severity
+from .schemas import (IncidentCreate, IncidentUpdate, IncidentStatus, Severity, IncidentListResponse, IncidentResponse)
 from sqlalchemy.orm import Session
 from .schemas import IncidentCreate,IncidentUpdate,IncidentStatus
 from .models import Incident
@@ -36,6 +38,8 @@ def create_incident(
          db.rollback()
          raise
 
+
+
 def get_incident(db:Session,incident_id:uuid.UUID)->Incident:
 
     incident=IncidentCRUD.get_incident(db=db, incident_id=incident_id)
@@ -44,6 +48,9 @@ def get_incident(db:Session,incident_id:uuid.UUID)->Incident:
 
         raise HTTPException(status_code=404, detail="Incident not found")
     return incident
+
+
+
 
 
 def update_incident(incident_id:uuid.UUID,update_data:IncidentUpdate,db:Session,actor_id:uuid.UUID)->Incident:
@@ -141,6 +148,8 @@ def valid_status(current_status:IncidentStatus,new_status:IncidentStatus):
             status_code=400,
             detail=f"Invalid status transition: "
                    f"{current_status.value} -> {new_status.value}")
+
+
 
 def get_incidents(
     db: Session,
