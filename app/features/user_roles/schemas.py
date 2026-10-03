@@ -1,6 +1,10 @@
 from pydantic import Field, BaseModel, ConfigDict
 import uuid
 
+class UserRoleCreate(BaseModel):
+    user_id: uuid.UUID
+    role_id: uuid.UUID
+
 class UserRoleResponse(BaseModel):
 
     model_config= ConfigDict(from_attributes=True)

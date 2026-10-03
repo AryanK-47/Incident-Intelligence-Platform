@@ -26,18 +26,22 @@ def validate_password(password:str) -> str:
 class UserBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
+    name: str=Field(...,
+                        description="The name of the user"
+                    )
+    
     email: EmailStr=Field(...,
                         description="The email of the user"
                     )
 
-    name: str=Field(...,
-                    description="The name of the user"
-                )
-    
 
 class UserCreate(UserBase):
     password: str = Field(...,
                         description="The password of the user"
+                    )
+
+    role : str = Field(...,
+                        description="Role assigned to the user"
                     )
 
     @field_validator('password')
@@ -45,10 +49,12 @@ class UserCreate(UserBase):
     def password_validation(cls, value: str) -> str:
         return validate_password(value)
 
+
 class UserResponse(UserBase):
     id :uuid.UUID = Field(...,
                         description="Id of user"
                     )
+
 
 class UserUpdate(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -62,3 +68,15 @@ class UserUpdate(BaseModel):
     def password_validation(cls, value : str | None):
         if value is None: return value
         return validate_password(value)
+
+
+class RoleUserResponse(UserBase):
+    model_config=ConfigDict(from_attributes=True)
+
+    id : uuid.UUID = Field(...,
+                        description="Id of user")
+
+    roles: list[str] = Field(
+                                default_factory=list,
+                                description="Roles assigned to user"
+                            )

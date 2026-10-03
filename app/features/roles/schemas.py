@@ -1,5 +1,8 @@
-from pydantic import Field, BaseModel, ConfigDict
 import uuid
+from pydantic import Field, BaseModel, ConfigDict
+
+from app.features.users.schemas import RoleUserResponse
+
 
 class RoleBase(BaseModel):
     name : str = Field(...,
@@ -18,6 +21,15 @@ class RoleResponse(RoleBase):
     id : uuid.UUID = Field(...,
                         description="Id of role"
                     )
+class RoleDetailResponse(RoleResponse):
+    users : list[RoleUserResponse]= Field(
+        default_factory=list,
+        description="Users assigned to this role"
+    )
 
 class RoleUpdate(BaseModel):
-    name : str | None = None
+    name : str | None = Field(
+        default = None,
+        min_length=3,
+        description="New name of the rolenb"
+    )

@@ -1,12 +1,16 @@
-from app.core.database import Base
-from sqlalchemy.dialects.postgresql import UUID
 import uuid
+
+from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.core.database import Base
+
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from app.features.users.models import User
+    from app.features.user_roles.models import UserRole
 
+    
 class Role(Base):
 
     __tablename__ = "roles"
@@ -21,7 +25,7 @@ class Role(Base):
         nullable=False
     )
 
-    users : Mapped[list["User"]] = relationship(
-        secondary="user_roles",
-        back_populates="roles"
+    user_roles : Mapped[list["UserRole"]] = relationship(
+        back_populates="role",
+        cascade= "all,delete-orphan"
     )
