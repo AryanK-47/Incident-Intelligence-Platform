@@ -1,12 +1,9 @@
 from fastapi import FastAPI
-from app.features.users.models import User
-from app.features.roles.models import Role
-from app.features.user_roles.models import UserRole
 
 #Load and register models in SQLAlchemy registry
+from app.core import models
 
 # routers...
-from app.core import models
 from app.features.ai_analysis.routers import router as analysis_router
 from app.features.auth.routers import router as auth_router
 from app.features.Incident.routers import router as incident_router
