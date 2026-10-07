@@ -31,7 +31,7 @@ def get_incidents(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    incidents, total = incident_service.get_incidents(
+    response = incident_service.get_incidents(
         db=db,
         page=page,
         page_size=page_size,
@@ -40,12 +40,7 @@ def get_incidents(
         service=service,
     )
 
-    return {
-        "items": incidents,
-        "page": page,
-        "page_size": page_size,
-        "total": total,
-    }
+    return response
 
 @router.get("/incidents/{incident_id}",response_model=IncidentResponse)
 def get_incident(incident_id:uuid.UUID,

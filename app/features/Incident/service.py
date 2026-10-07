@@ -4,7 +4,8 @@ import uuid
 from . import CRUD as IncidentCRUD
 from app.features.Incident_Events import CRUD as EventCRUD
 import json
-from app.core.redis import redis_client, build_incident_list_cache_key
+import redis
+from app.core.redis import (redis_client, build_incident_list_cache_key,invalidate_incident_list_cache,invalidate_incident_cache)
 from datetime import datetime,timezone
 from .schemas import (IncidentCreate, IncidentUpdate, IncidentStatus, Severity, IncidentListResponse, IncidentResponse)
 from sqlalchemy.orm import Session
@@ -29,6 +30,8 @@ def create_incident(
                        event_type="INCIDENT_CREATED")
 
         db.commit()
+        invalidate_incident_list_cache()
+
         db.refresh(new_incident)
         
 
@@ -40,14 +43,50 @@ def create_incident(
 
 
 
-def get_incident(db:Session,incident_id:uuid.UUID)->Incident:
+def get_incident(
+    db: Session,
+    incident_id: uuid.UUID
+) -> IncidentResponse:
 
-    incident=IncidentCRUD.get_incident(db=db, incident_id=incident_id)
+    cache_key = f"incident:{incident_id}"
+
+    try:
+        cached_data = redis_client.get(cache_key)
+
+        if cached_data:
+            print("cache hit")
+
+            return IncidentResponse(
+                **json.loads(cached_data)
+            )
+        
+    except redis.RedisError:
+        print("redis unavailable - falling back to database")
+
+    print("cache miss")
+
+    incident = IncidentCRUD.get_incident(
+        db=db,
+        incident_id=incident_id
+    )
 
     if incident is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Incident not found"
+        )
 
-        raise HTTPException(status_code=404, detail="Incident not found")
-    return incident
+    response = IncidentResponse.model_validate(
+        incident
+    )
+
+    redis_client.set(
+        cache_key,
+        response.model_dump_json(),
+        ex=300
+    )
+
+    return response
 
 
 
@@ -107,6 +146,10 @@ def update_incident(incident_id:uuid.UUID,update_data:IncidentUpdate,db:Session,
             )
 
         db.commit()
+        invalidate_incident_list_cache()
+        
+        invalidate_incident_cache(str(incident_id))
+
         db.refresh(incident)
         return incident
     
@@ -159,7 +202,27 @@ def get_incidents(
     severity: str | None = None,
     service: str | None = None,
 ):
-    return IncidentCRUD.get_incidents(
+    cache_key = build_incident_list_cache_key(
+        page=page,
+        page_size=page_size,
+        status=status,
+        severity=severity,
+        service=service,
+    )
+    try:
+        cached_data = redis_client.get(cache_key)
+        if cached_data:
+                print("cache hit")
+                return IncidentListResponse(**json.loads(cached_data))
+        
+    except redis.RedisError:
+        cached_data=None
+
+    
+
+    print("cache miss")
+
+    incidents, total = IncidentCRUD.get_incidents(
         db=db,
         page=page,
         page_size=page_size,
@@ -167,3 +230,20 @@ def get_incidents(
         severity=severity,
         service=service,
     )
+    cache_response=IncidentListResponse(
+        items=[IncidentResponse.model_validate(incident)
+               for incident in incidents],
+        page=page,
+        page_size=page_size,
+        total=total,
+    )
+    try:
+        redis_client.set(
+        cache_key,
+        cache_response.model_dump_json(),
+        ex=300
+    )
+    except redis.RedisError:
+        print("redis unavailable - response not cached")
+
+    return cache_response

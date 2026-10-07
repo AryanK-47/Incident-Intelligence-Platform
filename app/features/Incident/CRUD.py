@@ -25,29 +25,18 @@ def create_incident(incident_data:IncidentCreate,
     return new_data
 
 
-def get_incident(db:Session,incident_id:uuid.UUID)->Incident | None:
-    cache_key= f"incident:{incident_id}:status"
-    cached_status=redis_client.get(cache_key)
+def get_incident(
+    db: Session,
+    incident_id: uuid.UUID
+) -> Incident | None:
 
-    if cached_status:
-        print("Cache HIT")
-    else:
-        print("Cache MISS")
+    query = select(Incident).where(
+        Incident.id == incident_id
+    )
 
-    
-    query=select(Incident).where(Incident.id==incident_id)
-    result=db.execute(query)
+    result = db.execute(query)
 
-    info=result.scalar_one_or_none()
-
-    if info is not None:
-        redis_client.set(
-            cache_key,
-            info.status,
-            ex=30
-        )
-
-    return info
+    return result.scalar_one_or_none()
 
 
 def update_incident(db:Session, 
