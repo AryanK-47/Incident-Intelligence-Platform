@@ -1,10 +1,13 @@
 import redis
 
-redis_client=redis.Redis(
+redis_client = redis.Redis(
     host="localhost",
     port=6379,
-    decode_responses=True
+    decode_responses=True,
+    socket_connect_timeout=1,
+    socket_timeout=1,
 )
+
 
 def build_incident_list_cache_key(
     page: int,

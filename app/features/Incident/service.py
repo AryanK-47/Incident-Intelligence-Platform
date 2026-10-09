@@ -1,6 +1,7 @@
 from __future__ import annotations
 from fastapi import HTTPException
 import uuid
+from app.core.metrics import CACHE_HITS, CACHE_MISSES, REDIS_ERRORS
 from . import CRUD as IncidentCRUD
 from app.features.Incident_Events import CRUD as EventCRUD
 import json
@@ -54,16 +55,20 @@ def get_incident(
         cached_data = redis_client.get(cache_key)
 
         if cached_data:
+            CACHE_HITS.labels(cache_type="single").inc()
             print("cache hit")
 
             return IncidentResponse(
                 **json.loads(cached_data)
             )
         
+        CACHE_MISSES.labels(cache_type="single").inc()
+        
     except redis.RedisError:
+        REDIS_ERRORS.labels(operation="get").inc()
         print("redis unavailable - falling back to database")
 
-    print("cache miss")
+    print("cache miss or Redis unavailable")
 
     incident = IncidentCRUD.get_incident(
         db=db,
@@ -80,11 +85,16 @@ def get_incident(
         incident
     )
 
-    redis_client.set(
-        cache_key,
-        response.model_dump_json(),
-        ex=300
-    )
+    try:
+        redis_client.set(
+            cache_key,
+            response.model_dump_json(),
+            ex=300,
+        )
+
+    except redis.RedisError:
+        REDIS_ERRORS.labels(operation="set").inc()
+        print("redis unavailable - response not cached")
 
     return response
 
@@ -202,18 +212,26 @@ def get_incidents(
     severity: str | None = None,
     service: str | None = None,
 ):
-    cache_key = build_incident_list_cache_key(
-        page=page,
-        page_size=page_size,
-        status=status,
-        severity=severity,
-        service=service,
-    )
+    cache_key = None
+    cached_data = None
+    
     try:
+        cache_key = build_incident_list_cache_key(
+                page=page,
+                page_size=page_size,
+                status=status,
+                severity=severity,
+                service=service,
+            )
+        
         cached_data = redis_client.get(cache_key)
+
         if cached_data:
-                print("cache hit")
-                return IncidentListResponse(**json.loads(cached_data))
+            CACHE_HITS.labels(cache_type="list").inc()
+            print("cache hit")
+            return IncidentListResponse(**json.loads(cached_data))
+
+        CACHE_MISSES.labels(cache_type="list").inc()
         
     except redis.RedisError:
         cached_data=None
@@ -237,13 +255,16 @@ def get_incidents(
         page_size=page_size,
         total=total,
     )
-    try:
-        redis_client.set(
-        cache_key,
-        cache_response.model_dump_json(),
-        ex=300
-    )
-    except redis.RedisError:
-        print("redis unavailable - response not cached")
+
+    if cache_key is not None:
+
+        try:
+            redis_client.set(
+            cache_key,
+            cache_response.model_dump_json(),
+            ex=300
+        )
+        except redis.RedisError:
+            print("redis unavailable - response not cached")
 
     return cache_response
