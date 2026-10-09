@@ -1,8 +1,10 @@
+import os
+
 import redis
 
 redis_client = redis.Redis(
-    host="localhost",
-    port=6379,
+    host=os.getenv("REDIS_HOST", "localhost"),
+    port=int(os.getenv("REDIS_PORT", "6379")),
     decode_responses=True,
     socket_connect_timeout=1,
     socket_timeout=1,
@@ -16,8 +18,7 @@ def build_incident_list_cache_key(
     severity: str | None,
     service: str | None,
 ) -> str:
-    
-    version=get_incident_list_cache_version()
+    version = get_incident_list_cache_version()
 
     return (
         f"incidents:v{version}:"
@@ -28,14 +29,16 @@ def build_incident_list_cache_key(
         f"service={service}"
     )
 
-def get_incident_list_cache_version()->int:
-    version=redis_client.get("incidents:version")
+
+def get_incident_list_cache_version() -> int:
+    version = redis_client.get("incidents:version")
 
     if version is None:
-        redis_client.set("incidents:version",1)
+        redis_client.set("incidents:version", 1)
         return 1
 
     return int(version)
+
 
 def invalidate_incident_list_cache() -> int | None:
     try:
@@ -44,11 +47,10 @@ def invalidate_incident_list_cache() -> int | None:
         print("redis unavailable - list cache invalidation skipped")
         return None
 
+
 def invalidate_incident_cache(incident_id: str) -> bool:
     try:
-        redis_client.delete(
-            f"incident:{incident_id}"
-        )
+        redis_client.delete(f"incident:{incident_id}")
         return True
     except redis.RedisError:
         print("redis unavailable - incident cache invalidation skipped")
