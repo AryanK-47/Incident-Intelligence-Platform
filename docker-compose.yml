@@ -1,19 +1,29 @@
+
 services:
   api:
     build: .
     env_file:
       - .env
     environment:
-      REDIS_HOST: host.docker.internal
+      REDIS_HOST: redis
       REDIS_PORT: "6379"
     ports:
       - "8000:8000"
+    depends_on:
+      - redis
     restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
 
   prometheus:
     image: prom/prometheus:latest
     ports:
-     - "9091:9090"
+      - "9091:9090"
     volumes:
       - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
     depends_on:
@@ -27,3 +37,6 @@ services:
     depends_on:
       - prometheus
     restart: unless-stopped
+
+volumes:
+  redis_data:

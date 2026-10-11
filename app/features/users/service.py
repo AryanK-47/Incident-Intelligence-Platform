@@ -54,6 +54,11 @@ def create_user(db : Session , user : UserCreate):
 
 def get_user(db : Session , user_id : uuid.UUID):
     user = crud.get_user(db, user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found"
+        )
     return build_user_response(user)
 
 
@@ -70,3 +75,7 @@ def update_user(db:Session, user_id : uuid.UUID, user_data : UserUpdate):
         del data["password"]
 
     return crud.update_user(db, user_id, data)
+
+def list_users(db: Session):
+    users = crud.get_users(db)
+    return [build_user_response(user) for user in users]

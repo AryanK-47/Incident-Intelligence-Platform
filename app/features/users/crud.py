@@ -103,3 +103,8 @@ def update_user(db : Session , user_id : uuid.UUID, data : dict):
     db.refresh(user)
 
     return user
+
+def get_users(db: Session):
+    statement = select(User).where(User.deleted_at.is_(None))
+    result = db.execute(statement)
+    return list(result.scalars().all())

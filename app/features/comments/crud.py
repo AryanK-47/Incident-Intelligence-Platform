@@ -31,3 +31,14 @@ def get_comment(db : Session, comment_id : uuid.UUID):
     result = db.execute(statement).scalars().one_or_none()
 
     return result
+
+
+##Ye function ek incident ke saare comments oldest-first return karega.
+def get_incident_comments(db: Session, incident_id: uuid.UUID):
+    statement = (
+        select(Comment)
+        .where(Comment.incident_id == incident_id)
+        .order_by(Comment.created_at.asc())
+    )
+    result = db.execute(statement)
+    return list(result.scalars().all())

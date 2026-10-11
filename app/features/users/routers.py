@@ -20,6 +20,13 @@ def create_user(
     
     return service.create_user(db,user)
 
+@router.get("/", response_model=list[RoleUserResponse])
+def list_users(
+    db: Session = Depends(get_db),
+    current_admin: User = Depends(require_admin),
+):
+    return service.list_users(db)
+
 
 #GET ROUTERS
 @router.get("/{user_id}", response_model = RoleUserResponse)

@@ -8,3 +8,6 @@ def create_comment(db : Session , comment_data : CommentCreate, user_id : uuid.U
 
 def get_comment(db : Session, comment_id : uuid.UUID):
     return crud.get_comment(db,comment_id)
+
+def get_incident_comments(db: Session, incident_id: uuid.UUID):
+    return crud.get_incident_comments(db, incident_id)
