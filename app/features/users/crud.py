@@ -69,6 +69,7 @@ def get_user(db : Session, user_id : uuid.UUID):
     result = db.execute(statement)
     return result.scalars().one_or_none()
 
+
 def delete_user(db :Session , user_id : uuid.UUID):
 
     statement = select(User).where(
@@ -99,12 +100,21 @@ def update_user(db : Session , user_id : uuid.UUID, data : dict):
     for field, value in data.items():
         setattr(user,field,value)
 
-    db.commit()
-    db.refresh(user)
+    try:
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        raise
 
+<<<<<<< HEAD
     return user
 
 def get_users(db: Session):
     statement = select(User).where(User.deleted_at.is_(None))
     result = db.execute(statement)
     return list(result.scalars().all())
+=======
+
+    db.refresh(user)
+    return user
+>>>>>>> fixes

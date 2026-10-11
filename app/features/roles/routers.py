@@ -7,7 +7,7 @@ from app.core.database import get_db
 from app.features.roles import service
 from app.features.users.models import User
 from app.core.auth import get_current_user
-from app.core.permissions import require_admin, require_user_or_admin
+from app.core.permissions import require_admin
 from app.features.roles.schemas import RoleCreate,RoleResponse, RoleUpdate, RoleDetailResponse
 
 
