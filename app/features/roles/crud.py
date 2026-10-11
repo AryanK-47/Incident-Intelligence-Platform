@@ -105,7 +105,7 @@ def delete_role(db: Session, role_id : uuid.UUID):
     if role is None:
         return None
 
-    if role.name == "ADMIN":
+    if role.name in ("ADMIN" , "VIEWER"):
         raise ValueError("System role cannot be deleted")
 
     db.delete(role)

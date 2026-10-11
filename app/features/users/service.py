@@ -54,6 +54,10 @@ def create_user(db : Session , user : UserCreate):
 
 def get_user(db : Session , user_id : uuid.UUID):
     user = crud.get_user(db, user_id)
+
+    if user is None:
+        return None
+    
     return build_user_response(user)
 
 
@@ -69,4 +73,11 @@ def update_user(db:Session, user_id : uuid.UUID, user_data : UserUpdate):
         data["password_hash"] = hash_password(data["password"])
         del data["password"]
 
-    return crud.update_user(db, user_id, data)
+
+    try:
+        return crud.update_user(db, user_id, data)
+    except IntegrityError:
+        raise HTTPException(
+            status_code= status.HTTP_409_CONFLICT,
+            detail = "A user with this email already exists."
+        )

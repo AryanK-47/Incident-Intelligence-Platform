@@ -41,7 +41,7 @@ def get_user(
 
 
 #UPDATE ROUTERS
-@router.patch("/{user_id}", response_model=UserResponse)
+@router.patch("/{user_id}", response_model=RoleUserResponse)
 def update_user(user_id : uuid.UUID,
                 user_data : UserUpdate,
                 db :Session = Depends(get_db),
@@ -60,7 +60,7 @@ def update_user(user_id : uuid.UUID,
 
 #DELETE ROUTERS
 @router.delete("/{user_id}" ,
-            response_model = UserResponse
+            response_model = RoleUserResponse
         )
 def delete_user(
     user_id : uuid.UUID,
