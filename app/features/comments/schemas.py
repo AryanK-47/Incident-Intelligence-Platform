@@ -9,7 +9,7 @@ class CommentBase(BaseModel):
                     )
 
 '''Comment create needs
-id -> autromated UUID
+id -> automated UUID
 incident_id  -> from URL/path
 user_id -> from logged in user
 created_at -> automated timestamp
@@ -17,6 +17,11 @@ created_at -> automated timestamp
 
 class CommentCreate(CommentBase):
     pass
+
+class CommentUserResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: uuid.UUID
+    name: str
 
 class CommentResponse(CommentBase):
 
@@ -29,7 +34,9 @@ class CommentResponse(CommentBase):
     incident_id : uuid.UUID = Field(...,
                                     description="Id of incident"
                                 )
-    
+
+    user: CommentUserResponse
+
     user_id : uuid.UUID =Field(...,
                             description="Id of user"
                             )

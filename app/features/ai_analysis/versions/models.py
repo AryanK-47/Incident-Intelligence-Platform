@@ -2,7 +2,7 @@ from app.core.database import Base
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 import uuid
 from sqlalchemy import String,ARRAY,Text,Float, DateTime, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import UUID, JSONB
 from datetime import datetime,timezone
 
 from typing import TYPE_CHECKING
@@ -46,9 +46,9 @@ class AiAnalysisVersion(Base):
         Text,
         nullable=False
     )
-    confidence : Mapped[float] = mapped_column(
+    confidence : Mapped[float | None] = mapped_column(
         Float,
-        nullable=False
+        nullable=True
     )
     model : Mapped[str] = mapped_column(
         String,
@@ -61,4 +61,19 @@ class AiAnalysisVersion(Base):
     )
     analysis : Mapped["AiAnalysis"] = relationship(
         back_populates = "versions"
+    )
+
+    rca_score: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True
+    )
+
+    candidate_services: Mapped[dict | list | None] = mapped_column(
+        JSONB,
+        nullable=True
+    )
+
+    evidence: Mapped[dict | list | None] = mapped_column(
+        JSONB,
+        nullable=True
     )

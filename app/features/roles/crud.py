@@ -77,7 +77,7 @@ def update_role(db : Session , role_id : uuid.UUID, role_data : RoleUpdate):
         return role
 
     #Admin role cannot be updated
-    if role.name == "ADMIN":
+    if role.name in ["ADMIN","VIEWER"]:
         raise ValueError("System role cannot be changed")
 
     #Check if any role with same name exists
@@ -105,7 +105,7 @@ def delete_role(db: Session, role_id : uuid.UUID):
     if role is None:
         return None
 
-    if role.name == "ADMIN":
+    if role.name in ("ADMIN" , "VIEWER"):
         raise ValueError("System role cannot be deleted")
 
     db.delete(role)

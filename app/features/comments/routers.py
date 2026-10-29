@@ -8,7 +8,7 @@ from app.features.users.models import User
 from app.features.comments.schemas import CommentCreate, CommentResponse
 from app.features.comments import service
 
-router = APIRouter()
+router = APIRouter(tags=['Comments'])
 
 
 @router.post(

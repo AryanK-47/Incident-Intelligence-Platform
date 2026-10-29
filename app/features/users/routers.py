@@ -8,7 +8,9 @@ from app.features.users.models import User
 from app.core.permissions import require_admin,require_user_or_admin
 from app.features.users.schemas import UserResponse,UserCreate, UserUpdate, RoleUserResponse
 
-router = APIRouter(prefix="/users")
+router = APIRouter(prefix="/users",
+                    tags=['Users']
+                )
 
 #CREATE ROUTERS
 @router.post("/", response_model = RoleUserResponse)
@@ -48,7 +50,7 @@ def get_user(
 
 
 #UPDATE ROUTERS
-@router.patch("/{user_id}", response_model=UserResponse)
+@router.patch("/{user_id}", response_model=RoleUserResponse)
 def update_user(user_id : uuid.UUID,
                 user_data : UserUpdate,
                 db :Session = Depends(get_db),
@@ -67,7 +69,7 @@ def update_user(user_id : uuid.UUID,
 
 #DELETE ROUTERS
 @router.delete("/{user_id}" ,
-            response_model = UserResponse
+            response_model = RoleUserResponse
         )
 def delete_user(
     user_id : uuid.UUID,

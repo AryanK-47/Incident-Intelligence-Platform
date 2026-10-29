@@ -7,12 +7,14 @@ from app.core.database import get_db
 from app.features.roles import service
 from app.features.users.models import User
 from app.core.auth import get_current_user
-from app.core.permissions import require_admin, require_user_or_admin
+from app.core.permissions import require_admin
 from app.features.roles.schemas import RoleCreate,RoleResponse, RoleUpdate, RoleDetailResponse
 
 
 
-router = APIRouter(prefix="/roles")
+router = APIRouter(prefix="/roles",
+                    tags=['Roles']
+                )
 
 
 #CREATE ROUTERS
@@ -34,7 +36,7 @@ def create_role(
 #GET ROUTERS
 @router.get("/" , response_model= list[RoleResponse])
 def get_roles(db : Session = Depends(get_db),
-                current_admin : User = Depends(get_current_user)
+                current_user : User = Depends(get_current_user)
             ):
     return service.get_roles(db)
 
@@ -86,7 +88,7 @@ def update_role(role_id : uuid.UUID,
 def delete_role(
     role_id : uuid.UUID,
     db : Session = Depends(get_db),
-    current_ : User = Depends(require_admin)
+    current_admin : User = Depends(require_admin)
 ):
 
     try:

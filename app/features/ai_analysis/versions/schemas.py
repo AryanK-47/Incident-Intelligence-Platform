@@ -23,13 +23,32 @@ class VersionBase(BaseModel):
                                     description="analysis of impact caused by incident"
                                 )
 
-    confidence : float = Field(...,
-                                        description="confidence in analysis",
-                                        ge=0.0,
-                                        le=1.0
-                                    )
+    confidence: float | None = Field(
+                                    default=None,
+                                    description=(
+                                        "Calibrated confidence estimate, when available. "
+                                        "The RCA ranking score is not a confidence probability."
+                                    ),
+                                    ge=0.0,
+                                    le=1.0,
+                            )
 
     model : str = Field(..., description="model")
+
+    rca_score: float | None = Field(
+        default=None,
+        description="V1 RCA ranking score; not a calibrated probability"
+    )
+
+    candidate_services: dict | list | None = Field(
+        default=None,
+        description="Ranked candidate services and their RCA scores"
+    )
+
+    evidence: dict | list | None = Field(
+        default=None,
+        description="Telemetry evidence and signal ranks supporting the RCA"
+    )
 
 
 class VersionCreate(VersionBase):
