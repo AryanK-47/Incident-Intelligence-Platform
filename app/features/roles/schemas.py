@@ -28,8 +28,7 @@ class RoleDetailResponse(RoleResponse):
     )
 
 class RoleUpdate(BaseModel):
-    name : str | None = Field(
-        default = None,
+    name : str  = Field(...,
         min_length=3,
         description="New name of the rolenb"
     )

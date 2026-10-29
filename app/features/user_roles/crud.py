@@ -114,9 +114,11 @@ def update_user_role(
         another_admin = db.execute(
             select(UserRole)
             .join(Role, UserRole.role_id == Role.id)
+            .join(User, UserRole.user_id == User.id)
             .where(
                 Role.name == "ADMIN",
-                UserRole.user_id != current_user_id
+                UserRole.user_id != current_user_id,
+                User.deleted_at.is_(None)
             )
         ).scalar_one_or_none()
         
@@ -183,9 +185,11 @@ def delete_user_role(
         another_admin = db.execute(
             select(UserRole)
             .join(Role, UserRole.role_id == Role.id)
+            .join(User, UserRole.user_id == User.id)
             .where(
                 Role.name == "ADMIN",
-                UserRole.user_id != current_user_id
+                UserRole.user_id != current_user_id,
+                User.deleted_at.is_(None)
             )
         ).scalar_one_or_none()
 

@@ -20,7 +20,10 @@ def create_version(
         suggested_remediation = data.suggested_remediation,
         impact_analysis = data.impact_analysis,
         confidence = data.confidence,
-        model = data.model
+        model = data.model,
+        rca_score=data.rca_score,
+        candidate_services=data.candidate_services,
+        evidence=data.evidence
     )
 
     db.add(version)

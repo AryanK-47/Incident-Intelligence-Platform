@@ -8,7 +8,9 @@ from app.features.users.models import User
 from app.core.permissions import require_admin,require_user_or_admin
 from app.features.users.schemas import UserResponse,UserCreate, UserUpdate, RoleUserResponse
 
-router = APIRouter(prefix="/users")
+router = APIRouter(prefix="/users",
+                    tags=['Users']
+                )
 
 #CREATE ROUTERS
 @router.post("/", response_model = RoleUserResponse)

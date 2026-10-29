@@ -39,18 +39,37 @@ def create_analysis(
     return ai_analysis
 
 #This add a new version to analysis and updates current_analysis
-def add_version(db:Session,
-                analysis_id : uuid.UUID,
-                data : VersionCreate,
-                version_number : int
-                ):
-    create_version(db, analysis_id,data,version_number)
-    statement = select(AiAnalysis).where(AiAnalysis.id==analysis_id)
-    ai_analysis = db.execute(statement).scalar_one_or_none()
-    ai_analysis.current_version=version_number
 
-    db.commit()
-    return ai_analysis
+def add_version(
+    db: Session,
+    analysis_id: uuid.UUID,
+    data: VersionCreate,
+    version_number: int
+):
+    statement = select(AiAnalysis).where(AiAnalysis.id == analysis_id)
+    ai_analysis = db.execute(statement).scalar_one_or_none()
+
+    if ai_analysis is None:
+        return None
+
+    try:
+        create_version(
+            db=db,
+            analysis_id=analysis_id,
+            data=data,
+            version_number=version_number
+        )
+
+        ai_analysis.current_version = version_number
+        db.commit()
+        db.refresh(ai_analysis)
+
+        return ai_analysis
+
+    except Exception:
+        db.rollback()
+        raise
+
 
 #This returns version number of current/latest version
 def get_current_version_number(db : Session,

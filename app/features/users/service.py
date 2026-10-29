@@ -61,6 +61,14 @@ def get_user(db : Session , user_id : uuid.UUID):
     return build_user_response(user)
 
 
+def list_users(db: Session):
+    users = crud.list_users(db)
+
+    return [
+        build_user_response(user)
+        for user in users
+    ]
+
 def delete_user(db : Session , user_id : uuid.UUID):
     user = crud.delete_user(db,user_id)
     return user

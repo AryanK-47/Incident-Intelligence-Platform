@@ -1,6 +1,6 @@
 import uuid
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 from sqlalchemy.exc import IntegrityError
 
 from datetime import datetime, timezone
@@ -63,11 +63,34 @@ def create_user(db : Session,
     return user
 
 def get_user(db : Session, user_id : uuid.UUID):
-    statement = select(User).where(
-        User.id==user_id,
-        User.deleted_at.is_(None))
+    statement = (
+        select(User)
+        .options(
+            selectinload(User.user_roles)
+            .selectinload(UserRole.role)
+        )
+        .where(
+            User.id == user_id,
+            User.deleted_at.is_(None)
+        )
+    )
     result = db.execute(statement)
     return result.scalars().one_or_none()
+
+
+def list_users(db: Session):
+    statement = (
+        select(User)
+        .options(
+            selectinload(User.user_roles)
+            .selectinload(UserRole.role)
+        )
+        .where(User.deleted_at.is_(None))
+    )
+
+    result = db.execute(statement)
+
+    return result.scalars().all()
 
 
 def delete_user(db :Session , user_id : uuid.UUID):
