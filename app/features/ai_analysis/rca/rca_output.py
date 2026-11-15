@@ -18,6 +18,52 @@ SIGNAL_LABELS = {
     "latency-90_early_change": "p90 latency",
 }
 
+def calculate_heuristic_confidence(
+    ranked_candidates: pd.DataFrame,
+) -> float:
+    """
+    Calculate a heuristic confidence score between 0 and 1.
+
+    Confidence is based on:
+    1. Signal agreement: how many signals rank the top service first.
+    2. Candidate separation: score difference between the top
+       and second-ranked services.
+
+    This is not a calibrated probability.
+    """
+
+    if ranked_candidates.empty:
+        raise ValueError("Cannot calculate confidence without candidates.")
+
+    top_candidate = ranked_candidates.iloc[0]
+
+    # Factor 1: Agreement across the four telemetry signals.
+    signal_agreement = 0.0
+
+    for column in SIGNAL_COLUMNS:
+        top_rank = float(top_candidate[f"{column}_rank"])
+        max_rank = float(ranked_candidates[f"{column}_rank"].max())
+
+        if top_rank == max_rank:
+            signal_agreement += 1
+
+    signal_agreement /= len(SIGNAL_COLUMNS)
+
+    # Factor 2: Separation between the top two candidates.
+    if len(ranked_candidates) >= 2:
+        second_score = float(ranked_candidates.iloc[1]["onset_score"])
+        top_score = float(top_candidate["onset_score"])
+
+        score_gap = max(0.0, min(1.0, top_score - second_score))
+    else:
+        # No second candidate means separation cannot be measured.
+        score_gap = 0.0
+
+    confidence = (0.5 * signal_agreement) + (0.5 * score_gap)
+
+    return round(max(0.0, min(1.0, confidence)), 4)
+
+
 
 def build_rca_output(
     score_df: pd.DataFrame,
@@ -70,13 +116,24 @@ def build_rca_output(
         ["onset_score", "service"],
         ascending=[False, True],
     )
+    if str(ranked_candidates.iloc[0]["service"]) != root_cause_service:
+        raise ValueError(
+            "Predicted service does not match the highest-ranked candidate."
+        )
+    confidence = calculate_heuristic_confidence(ranked_candidates)
 
     candidate_services = [
         {
             "service": str(row["service"]),
+            "rank": rank,
             "rca_score": float(row["onset_score"]),
+            "score_gap": round(
+                top_score - float(row["onset_score"]), 4
+            ),
         }
-        for _, row in ranked_candidates.iterrows()
+        for rank, (_, row) in enumerate(
+            ranked_candidates.iterrows(), start=1
+        )
     ]
 
     evidence = []
@@ -113,6 +170,14 @@ def build_rca_output(
         key=lambda column: float(top_row[f"{column}_rank"]),
         reverse=True,
     )
+    strongest_signal = ranked_signals[0]
+    weakest_signal = ranked_signals[-1]
+
+    strongest_label = SIGNAL_LABELS[strongest_signal]
+    weakest_label = SIGNAL_LABELS[weakest_signal]
+
+    strongest_rank = float(top_row[f"{strongest_signal}_rank"])
+    weakest_rank = float(top_row[f"{weakest_signal}_rank"])
 
     signal_explanations = [
         (
@@ -168,7 +233,7 @@ def build_rca_output(
             "users, error rates, service availability, and incident "
             "duration is required."
         ),
-        "confidence": None,
+        "confidence": confidence,
         "model": "RCAEval-V1-rule-based",
         "rca_score": top_score,
         "candidate_services": candidate_services,

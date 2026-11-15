@@ -26,8 +26,8 @@ class VersionBase(BaseModel):
     confidence: float | None = Field(
                                     default=None,
                                     description=(
-                                        "Calibrated confidence estimate, when available. "
-                                        "The RCA ranking score is not a confidence probability."
+                                        "Heuristic confidence score between 0 and 1. "
+                                        "This is not a calibrated probability."
                                     ),
                                     ge=0.0,
                                     le=1.0,

@@ -2,6 +2,7 @@
 from typing import Any
 
 import pandas as pd
+import numpy as np
 
 
 REQUIRED_SIGNAL_COLUMNS = [
@@ -53,8 +54,35 @@ def build_onset_dataframe(
             "Telemetry contains missing values in required columns."
         )
 
-    if onset_df["service"].astype(str).str.strip().eq("").any():
-        raise ValueError("Service names cannot be empty.")
+    for column in ["case", "service"]:
+        values = onset_df[column].astype(str)
+
+        if values.str.strip().eq("").any():
+            raise ValueError(
+                f"Telemetry {column} values cannot be empty or whitespace."
+            )
+
+        if values.ne(values.str.strip()).any():
+            raise ValueError(
+                f"Telemetry {column} values cannot contain "
+                f"leading or trailing whitespace."
+            )
+
+    duplicate_mask = onset_df.duplicated(
+        subset=["case", "service"],
+        keep=False,
+    )
+
+    if duplicate_mask.any():
+        duplicates = (
+            onset_df.loc[duplicate_mask, ["case", "service"]]
+            .drop_duplicates()
+            .to_dict(orient="records")
+        )
+
+        raise ValueError(
+            f"Duplicate (case, service) telemetry entries found: {duplicates}"
+        )
 
     signal_values = onset_df[REQUIRED_SIGNAL_COLUMNS].apply(
         pd.to_numeric,
@@ -64,6 +92,11 @@ def build_onset_dataframe(
     if signal_values.isnull().any().any():
         raise ValueError(
             "Telemetry signal values must be numeric."
+        )
+
+    if not np.isfinite(signal_values.to_numpy(dtype=float)).all():
+        raise ValueError(
+            "Telemetry signal values must contain only finite numbers."
         )
 
     onset_df[REQUIRED_SIGNAL_COLUMNS] = signal_values
