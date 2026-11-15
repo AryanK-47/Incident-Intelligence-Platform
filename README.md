@@ -30,22 +30,22 @@ ranking component that works with supplied telemetry signals.
   -----------------------------------------------------------------------
   Area                                Technologies
   ----------------------------------- -----------------------------------
-  Backend                             Python, FastAPI, Pydantic
+  Backend  :                           Python, FastAPI, Pydantic
 
-  Database                            PostgreSQL, SQLAlchemy 2.x, Alembic
+  Database :                            PostgreSQL, SQLAlchemy 2.x, Alembic
 
-  Authentication                      JWT, Argon2 password hashing,
+  Authentication :                      JWT, Argon2 password hashing,
                                       role-based access control
 
-  Caching                             Redis
+  Caching :                            Redis
 
-  Frontend                            React, Vite, React Router, Axios
+  Frontend :                           React, Vite, React Router, Axios
 
-  Monitoring                          Prometheus, Grafana
+  Monitoring :                          Prometheus, Grafana
 
-  Containers                          Docker, Docker Compose
+  Containers :                         Docker, Docker Compose
 
-  RCA experimentation                 Python, Pandas, scikit-learn,
+  RCA experimentation :                Python, Pandas, scikit-learn,
                                       RCAEval dataset
   -----------------------------------------------------------------------
 
