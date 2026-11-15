@@ -340,6 +340,4 @@ separately.
     backups, and health checks.
 -   Add documented Grafana dashboards and alert rules.
 
-## License
 
-Add a license file before distributing or reusing this project publicly.
