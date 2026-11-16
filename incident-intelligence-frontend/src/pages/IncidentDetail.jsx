@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import { Link, useParams } from "react-router-dom";
 import {
   ArrowLeft,
   Bot,
@@ -13,7 +13,7 @@ import {
   Users,
   UserPlus,
   UserMinus,
-} from 'lucide-react';
+} from "lucide-react";
 
 import {
   getIncident,
@@ -21,17 +21,49 @@ import {
   getIncidentAssignees,
   assignIncidentUser,
   unassignIncidentUser,
-} from '../api/incidents';
+} from "../api/incidents";
 
 import {
   getAnalysis,
   getAnalysisVersions,
   getIncidentEvents,
-} from '../api/analysis';
+  createAnalysisFromTelemetry,
+} from "../api/analysis";
 
-import { getUsers } from '../api/users';
-import { errorMessage } from '../api/client';
-import { SeverityBadge, StatusBadge } from '../components/Badge';
+import { getUsers } from "../api/users";
+import { errorMessage } from "../api/client";
+import { SeverityBadge, StatusBadge } from "../components/Badge";
+
+function buildSampleTelemetry(caseId) {
+  return {
+    telemetry: [
+      {
+        case: String(caseId),
+        service: "api-gateway",
+        cpu_early_change: 0.18,
+        mem_early_change: 0.25,
+        "latency-50_early_change": 0.21,
+        "latency-90_early_change": 0.3,
+      },
+      {
+        case: String(caseId),
+        service: "payment-service",
+        cpu_early_change: 0.82,
+        mem_early_change: 0.76,
+        "latency-50_early_change": 0.91,
+        "latency-90_early_change": 0.95,
+      },
+      {
+        case: String(caseId),
+        service: "postgres-db",
+        cpu_early_change: 0.47,
+        mem_early_change: 0.52,
+        "latency-50_early_change": 0.58,
+        "latency-90_early_change": 0.63,
+      },
+    ],
+  };
+}
 
 export default function IncidentDetail() {
   const { id } = useParams();
@@ -41,38 +73,43 @@ export default function IncidentDetail() {
   const [versions, setVersions] = useState([]);
   const [events, setEvents] = useState([]);
 
+  const [telemetryJson, setTelemetryJson] = useState("");
+  const [analysisRunning, setAnalysisRunning] = useState(false);
+  const [analysisError, setAnalysisError] = useState("");
+  const [analysisNotice, setAnalysisNotice] = useState("");
+
   const [users, setUsers] = useState([]);
   const [assignees, setAssignees] = useState([]);
-  const [selectedUserId, setSelectedUserId] = useState('');
+  const [selectedUserId, setSelectedUserId] = useState("");
 
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
   const [saving, setSaving] = useState(false);
   const [assignmentSaving, setAssignmentSaving] = useState(false);
-  const [assignmentError, setAssignmentError] = useState('');
+  const [assignmentError, setAssignmentError] = useState("");
   const [usersUnavailable, setUsersUnavailable] = useState(false);
 
-  const [notice, setNotice] = useState('');
+  const [notice, setNotice] = useState("");
   const [edit, setEdit] = useState(false);
 
   const [form, setForm] = useState({
-    status: 'OPEN',
-    severity: 'SEV3',
-    cause: '',
+    status: "OPEN",
+    severity: "SEV3",
+    cause: "",
   });
 
   const load = async () => {
     setLoading(true);
-    setError('');
+    setError("");
 
     try {
       const data = await getIncident(id);
 
       setIncident(data);
       setForm({
-        status: data.status || 'OPEN',
-        severity: data.severity || 'SEV3',
-        cause: data.cause || '',
+        status: data.status || "OPEN",
+        severity: data.severity || "SEV3",
+        cause: data.cause || "",
       });
 
       const results = await Promise.allSettled([
@@ -83,43 +120,37 @@ export default function IncidentDetail() {
         getUsers(),
       ]);
 
-      if (results[0].status === 'fulfilled') {
-        setAnalysis(results[0].value);
+      if (results[0].status === "fulfilled") {
+        setAnalysis(results[0].value?.version ?? null);
+      } else {
+        setAnalysis(null);
       }
 
-      if (results[1].status === 'fulfilled') {
+      if (results[1].status === "fulfilled") {
         const value = results[1].value;
         setVersions(
-          Array.isArray(value)
-            ? value
-            : value?.items || value?.versions || []
+          Array.isArray(value) ? value : value?.items || value?.versions || [],
         );
       }
 
-      if (results[2].status === 'fulfilled') {
+      if (results[2].status === "fulfilled") {
         const value = results[2].value;
         setEvents(
-          Array.isArray(value)
-            ? value
-            : value?.items || value?.events || []
+          Array.isArray(value) ? value : value?.items || value?.events || [],
         );
       }
 
-      if (results[3].status === 'fulfilled') {
+      if (results[3].status === "fulfilled") {
         const value = results[3].value;
-        setAssignees(
-          Array.isArray(value) ? value : value?.items || []
-        );
-        setAssignmentError('');
+        setAssignees(Array.isArray(value) ? value : value?.items || []);
+        setAssignmentError("");
       } else {
         setAssignmentError(errorMessage(results[3].reason));
       }
 
-      if (results[4].status === 'fulfilled') {
+      if (results[4].status === "fulfilled") {
         const value = results[4].value;
-        setUsers(
-          Array.isArray(value) ? value : value?.items || []
-        );
+        setUsers(Array.isArray(value) ? value : value?.items || []);
         setUsersUnavailable(false);
       } else {
         setUsers([]);
@@ -133,13 +164,71 @@ export default function IncidentDetail() {
   };
 
   useEffect(() => {
+    setTelemetryJson(JSON.stringify(buildSampleTelemetry(id), null, 2));
+
     load();
   }, [id]);
+
+  const handleRunAnalysis = async (e) => {
+    e.preventDefault();
+
+    setAnalysisError("");
+    setAnalysisNotice("");
+
+    let payload;
+
+    // Step 1: Parse the JSON entered by the user
+    try {
+      payload = JSON.parse(telemetryJson);
+    } catch {
+      setAnalysisError("Invalid JSON. Please check your telemetry data.");
+      return;
+    }
+
+    // Step 2: Check the telemetry array
+    if (
+      !payload ||
+      !Array.isArray(payload.telemetry) ||
+      payload.telemetry.length === 0
+    ) {
+      setAnalysisError("Telemetry must contain a non-empty telemetry array.");
+      return;
+    }
+
+    setAnalysisRunning(true);
+
+    try {
+      // Step 3: Send telemetry to the backend
+      const response = await createAnalysisFromTelemetry(id, payload);
+
+      // Step 4: Store the generated analysis result
+      setAnalysis(response.version);
+
+      // Step 5: Update version history locally
+      const savedVersion = response.current_version;
+
+      if (Number.isInteger(savedVersion)) {
+        setVersions((previous) =>
+          previous.includes(savedVersion)
+            ? previous
+            : [...previous, savedVersion].sort((a, b) => a - b),
+        );
+      }
+
+      setAnalysisNotice(
+        `Root-cause analysis generated successfully. Version ${savedVersion} saved.`,
+      );
+    } catch (err) {
+      setAnalysisError(errorMessage(err));
+    } finally {
+      setAnalysisRunning(false);
+    }
+  };
 
   const save = async (e) => {
     e.preventDefault();
     setSaving(true);
-    setNotice('');
+    setNotice("");
 
     try {
       const payload = {
@@ -155,7 +244,7 @@ export default function IncidentDetail() {
 
       setIncident(data);
       setEdit(false);
-      setNotice('Incident updated.');
+      setNotice("Incident updated.");
 
       await load();
     } catch (err) {
@@ -169,17 +258,15 @@ export default function IncidentDetail() {
     if (!selectedUserId) return;
 
     setAssignmentSaving(true);
-    setAssignmentError('');
+    setAssignmentError("");
 
     try {
       await assignIncidentUser(id, selectedUserId);
 
-      setSelectedUserId('');
+      setSelectedUserId("");
 
       const data = await getIncidentAssignees(id);
-      setAssignees(
-        Array.isArray(data) ? data : data?.items || []
-      );
+      setAssignees(Array.isArray(data) ? data : data?.items || []);
     } catch (err) {
       setAssignmentError(errorMessage(err));
     } finally {
@@ -189,15 +276,13 @@ export default function IncidentDetail() {
 
   const handleUnassign = async (userId) => {
     setAssignmentSaving(true);
-    setAssignmentError('');
+    setAssignmentError("");
 
     try {
       await unassignIncidentUser(id, userId);
 
       const data = await getIncidentAssignees(id);
-      setAssignees(
-        Array.isArray(data) ? data : data?.items || []
-      );
+      setAssignees(Array.isArray(data) ? data : data?.items || []);
     } catch (err) {
       setAssignmentError(errorMessage(err));
     } finally {
@@ -205,15 +290,10 @@ export default function IncidentDetail() {
     }
   };
 
-  const activeAssignees = assignees.filter(
-    (item) => !item.unassigned_at
-  );
+  const activeAssignees = assignees.filter((item) => !item.unassigned_at);
 
   const availableUsers = users.filter(
-    (user) =>
-      !activeAssignees.some(
-        (item) => item.user_id === user.id
-      )
+    (user) => !activeAssignees.some((item) => item.user_id === user.id),
   );
 
   if (loading) {
@@ -231,7 +311,7 @@ export default function IncidentDetail() {
           <ShieldAlert />
         </div>
         <h2>Could not load incident</h2>
-        <p>{error || 'Incident not found.'}</p>
+        <p>{error || "Incident not found."}</p>
         <Link to="/incidents" className="secondary-btn">
           <ArrowLeft size={15} /> Back to incidents
         </Link>
@@ -256,9 +336,7 @@ export default function IncidentDetail() {
 
       <div className="page-heading detail-heading">
         <div>
-          <div className="eyebrow">
-            INCIDENT DETAILS / INVESTIGATION
-          </div>
+          <div className="eyebrow">INCIDENT DETAILS / INVESTIGATION</div>
 
           <h1>
             {incident.title}
@@ -268,19 +346,16 @@ export default function IncidentDetail() {
           <p>
             {incident.service}
             <span className="meta-separator"> · </span>
-            Created{' '}
+            Created{" "}
             {incident.created_at
               ? new Date(incident.created_at).toLocaleString()
-              : '—'}
+              : "—"}
           </p>
         </div>
 
         <div className="heading-actions">
-          <button
-            className="secondary-btn"
-            onClick={() => setEdit(!edit)}
-          >
-            {edit ? 'Cancel' : 'Update incident'}
+          <button className="secondary-btn" onClick={() => setEdit(!edit)}>
+            {edit ? "Cancel" : "Update incident"}
           </button>
         </div>
       </div>
@@ -294,10 +369,8 @@ export default function IncidentDetail() {
         <span className="detail-created">
           <Clock3 size={14} />
           {incident.resolved_at
-            ? `Resolved ${new Date(
-                incident.resolved_at
-              ).toLocaleString()}`
-            : 'Resolution time not set'}
+            ? `Resolved ${new Date(incident.resolved_at).toLocaleString()}`
+            : "Resolution time not set"}
         </span>
       </div>
 
@@ -314,9 +387,7 @@ export default function IncidentDetail() {
               </div>
             </div>
 
-            <div className="detail-description">
-              {incident.description}
-            </div>
+            <div className="detail-description">{incident.description}</div>
 
             <div className="detail-facts">
               <div>
@@ -363,12 +434,12 @@ export default function IncidentDetail() {
                     }
                   >
                     {[
-                      'OPEN',
-                      'INVESTIGATING',
-                      'IDENTIFIED',
-                      'MITIGATING',
-                      'RESOLVED',
-                      'CLOSED',
+                      "OPEN",
+                      "INVESTIGATING",
+                      "IDENTIFIED",
+                      "MITIGATING",
+                      "RESOLVED",
+                      "CLOSED",
                     ].map((value) => (
                       <option key={value} value={value}>
                         {value}
@@ -388,13 +459,11 @@ export default function IncidentDetail() {
                       })
                     }
                   >
-                    {['SEV1', 'SEV2', 'SEV3', 'SEV4'].map(
-                      (value) => (
-                        <option key={value} value={value}>
-                          {value}
-                        </option>
-                      )
-                    )}
+                    {["SEV1", "SEV2", "SEV3", "SEV4"].map((value) => (
+                      <option key={value} value={value}>
+                        {value}
+                      </option>
+                    ))}
                   </select>
                 </label>
 
@@ -413,7 +482,7 @@ export default function IncidentDetail() {
                 </label>
 
                 <button className="primary-btn" disabled={saving}>
-                  {saving ? 'Saving…' : 'Save changes'}
+                  {saving ? "Saving…" : "Save changes"}
                 </button>
               </form>
             )}
@@ -441,10 +510,7 @@ export default function IncidentDetail() {
             ) : (
               <div className="timeline">
                 {events.map((event, index) => (
-                  <div
-                    className="timeline-item"
-                    key={event.id || index}
-                  >
+                  <div className="timeline-item" key={event.id || index}>
                     <div className="timeline-marker">
                       <CheckCircle2 size={15} />
                     </div>
@@ -454,24 +520,22 @@ export default function IncidentDetail() {
                         {(
                           event.event_type ||
                           event.type ||
-                          'INCIDENT_EVENT'
-                        ).replaceAll('_', ' ')}
+                          "INCIDENT_EVENT"
+                        ).replaceAll("_", " ")}
                       </b>
 
                       <p>
                         {event.new_value
-                          ? `${event.old_value || '—'} → ${event.new_value}`
+                          ? `${event.old_value || "—"} → ${event.new_value}`
                           : event.description ||
                             event.message ||
-                            'Incident event recorded'}
+                            "Incident event recorded"}
                       </p>
 
                       <small>
                         {event.created_at
-                          ? new Date(
-                              event.created_at
-                            ).toLocaleString()
-                          : 'Timestamp unavailable'}
+                          ? new Date(event.created_at).toLocaleString()
+                          : "Timestamp unavailable"}
                       </small>
                     </div>
                   </div>
@@ -493,15 +557,13 @@ export default function IncidentDetail() {
               </div>
             </div>
 
-            {assignmentError && (
-              <div className="alert">{assignmentError}</div>
-            )}
+            {assignmentError && <div className="alert">{assignmentError}</div>}
 
             {usersUnavailable ? (
               <div className="subtle-empty">
                 <p>
-                  The user directory could not be loaded. Sign in
-                  with an admin account to select users.
+                  The user directory could not be loaded. Sign in with an admin
+                  account to select users.
                 </p>
               </div>
             ) : (
@@ -510,9 +572,7 @@ export default function IncidentDetail() {
                   Select user
                   <select
                     value={selectedUserId}
-                    onChange={(e) =>
-                      setSelectedUserId(e.target.value)
-                    }
+                    onChange={(e) => setSelectedUserId(e.target.value)}
                   >
                     <option value="">Choose a user</option>
 
@@ -535,15 +595,13 @@ export default function IncidentDetail() {
                   onClick={handleAssign}
                 >
                   <UserPlus size={15} />
-                  {assignmentSaving ? 'Saving…' : 'Assign user'}
+                  {assignmentSaving ? "Saving…" : "Assign user"}
                 </button>
               </div>
             )}
 
             <div className="assignment-list">
-              <h3>
-                Currently assigned ({activeAssignees.length})
-              </h3>
+              <h3>Currently assigned ({activeAssignees.length})</h3>
 
               {activeAssignees.length === 0 ? (
                 <div className="subtle-empty">
@@ -552,25 +610,21 @@ export default function IncidentDetail() {
               ) : (
                 activeAssignees.map((item) => {
                   const user = users.find(
-                    (candidate) => candidate.id === item.user_id
+                    (candidate) => candidate.id === item.user_id,
                   );
 
                   return (
                     <div className="version-row" key={item.id}>
                       <div>
-                        <b>{user?.name || 'Assigned user'}</b>
-                        <small>
-                          {user?.email || item.user_id}
-                        </small>
+                        <b>{user?.name || "Assigned user"}</b>
+                        <small>{user?.email || item.user_id}</small>
                       </div>
 
                       <button
                         type="button"
                         className="secondary-btn"
                         disabled={assignmentSaving}
-                        onClick={() =>
-                          handleUnassign(item.user_id)
-                        }
+                        onClick={() => handleUnassign(item.user_id)}
                       >
                         <UserMinus size={14} /> Unassign
                       </button>
@@ -589,9 +643,7 @@ export default function IncidentDetail() {
               </div>
 
               <div>
-                <span className="ai-overline">
-                  ASSISTED INVESTIGATION
-                </span>
+                <span className="ai-overline">ASSISTED INVESTIGATION</span>
                 <h2>AI analysis</h2>
               </div>
 
@@ -599,15 +651,82 @@ export default function IncidentDetail() {
             </div>
 
             <p className="ai-intro">
-              Review analysis persisted by the backend. Model
-              inference is not assumed to be active.
+              Submit precomputed telemetry signals for this incident to generate
+              a root-cause analysis.
             </p>
+
+            {/* Telemetry input */}
+            <form
+              className="stack-form telemetry-form"
+              onSubmit={handleRunAnalysis}
+            >
+              <div className="telemetry-heading">
+                <label htmlFor="telemetry-json">Telemetry JSON</label>
+
+                <button
+                  type="button"
+                  className="text-button"
+                  onClick={() => {
+                    setTelemetryJson(
+                      JSON.stringify(buildSampleTelemetry(id), null, 2),
+                    );
+                    setAnalysisError("");
+                    setAnalysisNotice("");
+                  }}
+                >
+                  Load sample
+                </button>
+              </div>
+
+              <textarea
+                id="telemetry-json"
+                rows={13}
+                value={telemetryJson}
+                onChange={(e) => setTelemetryJson(e.target.value)}
+                spellCheck={false}
+                placeholder="Enter telemetry JSON here..."
+              />
+
+              <small className="telemetry-help">
+                Provide one case with multiple unique services and their four
+                precomputed early-change signals.
+              </small>
+
+              {analysisError && (
+                <div className="alert error" role="alert">
+                  {analysisError}
+                </div>
+              )}
+
+              {analysisNotice && (
+                <div className="alert success" role="status">
+                  {analysisNotice}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                className="primary-btn analysis-btn"
+                disabled={analysisRunning}
+              >
+                {analysisRunning ? (
+                  <>
+                    <RefreshCw size={14} />
+                    Running RCA...
+                  </>
+                ) : (
+                  <>
+                    <BrainCircuit size={15} />
+                    Run root-cause analysis
+                  </>
+                )}
+              </button>
+            </form>
 
             {analysis ? (
               <div className="analysis-result">
                 <div className="analysis-status">
-                  <span className="tiny-dot" /> Stored analysis
-                  available
+                  <span className="tiny-dot" /> Stored analysis available
                 </div>
 
                 {analysis.analysis_type && (
@@ -620,12 +739,11 @@ export default function IncidentDetail() {
                 {analysis.root_cause && (
                   <div className="analysis-section">
                     <h3>Root cause</h3>
-                    {(Array.isArray(rootCause)
-                      ? rootCause
-                      : [rootCause]
-                    ).map((value, index) => (
-                      <p key={index}>{value}</p>
-                    ))}
+                    {(Array.isArray(rootCause) ? rootCause : [rootCause]).map(
+                      (value, index) => (
+                        <p key={index}>{value}</p>
+                      ),
+                    )}
                   </div>
                 )}
 
@@ -658,19 +776,12 @@ export default function IncidentDetail() {
                 {analysis.confidence != null && (
                   <div className="confidence-row">
                     <span>Confidence</span>
-                    <b>
-                      {Math.round(
-                        Number(analysis.confidence) * 100
-                      )}
-                      %
-                    </b>
+                    <b>{Math.round(Number(analysis.confidence) * 100)}%</b>
                   </div>
                 )}
 
                 {analysis.model && (
-                  <small className="model-label">
-                    Model: {analysis.model}
-                  </small>
+                  <small className="model-label">Model: {analysis.model}</small>
                 )}
               </div>
             ) : (
@@ -680,8 +791,8 @@ export default function IncidentDetail() {
                 </div>
                 <b>No saved analysis found</b>
                 <span>
-                  When inference is connected, analysis results can
-                  be stored and versioned here.
+                  No analysis has been generated for this incident yet. Enter
+                  telemetry above and run RCA to create the first version.
                 </span>
               </div>
             )}
@@ -689,8 +800,8 @@ export default function IncidentDetail() {
             <div className="analysis-readonly-note">
               <BrainCircuit size={15} />
               <span>
-                Analysis is read-only here. Model inference will be
-                enabled when the backend ML service is connected.
+                RCA uses deterministic V1 rule-based scoring. Confidence is
+                heuristic, not a calibrated probability.
               </span>
             </div>
           </section>
@@ -705,36 +816,18 @@ export default function IncidentDetail() {
             </div>
 
             {versions.length ? (
-              versions.map((version, index) => (
-                <div
-                  className="version-row"
-                  key={version.id || index}
-                >
-                  <span className="version-number">
-                    v
-                    {version.version_number ||
-                      version.version ||
-                      index + 1}
-                  </span>
+              versions.map((versionNumber) => (
+                <div className="version-row" key={versionNumber}>
+                  <span className="version-number">v{versionNumber}</span>
 
                   <div>
-                    <b>
-                      {version.analysis_type || 'Analysis snapshot'}
-                    </b>
-                    <small>
-                      {version.created_at
-                        ? new Date(
-                            version.created_at
-                          ).toLocaleString()
-                        : 'Saved version'}
-                    </small>
+                    <b>Saved RCA analysis</b>
+                    <small>Version {versionNumber}</small>
                   </div>
                 </div>
               ))
             ) : (
-              <div className="subtle-empty">
-                No version history returned.
-              </div>
+              <div className="subtle-empty">No version history returned.</div>
             )}
           </section>
         </aside>
