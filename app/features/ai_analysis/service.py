@@ -1,5 +1,6 @@
 import uuid
 from typing import Any
+from time import perf_counter
 
 from sqlalchemy.orm import Session
 from app.features.ai_analysis import crud
@@ -70,23 +71,54 @@ def create_analysis_from_telemetry(
     incident_id: uuid.UUID,
     telemetry: list[dict[str, Any]],
 ):
-    """
-    Generate an RCA from telemetry and persist it using the
-    existing analysis/versioning flow.
-    """
+    start = perf_counter()
+
+    print("[RCA] Starting incident lookup", flush=True)
+
     incident = get_incident(db, incident_id)
+
+    print(
+        f"[RCA] Incident lookup: {perf_counter() - start:.2f}s",
+        flush=True,
+    )
+
     if incident is None:
         return None
 
+    inference_start = perf_counter()
+
+    print("[RCA] Starting inference", flush=True)
+
     generated_version = generate_rca(telemetry)
+
+    print(
+        f"[RCA] Inference: {perf_counter() - inference_start:.2f}s",
+        flush=True,
+    )
 
     analysis_data = AiAnalysisCreate(version=generated_version)
 
-    return create_analysis(
+    persistence_start = perf_counter()
+
+    print("[RCA] Starting persistence", flush=True)
+
+    result = create_analysis(
         db=db,
         incident_id=incident_id,
         data=analysis_data,
     )
+
+    print(
+        f"[RCA] Persistence: {perf_counter() - persistence_start:.2f}s",
+        flush=True,
+    )
+
+    print(
+        f"[RCA] Total: {perf_counter() - start:.2f}s",
+        flush=True,
+    )
+
+    return result
 
 #This returns the complete ai-analysis which along with the latest version
 def get_analysis_with_current_version(db : Session , incident_id : uuid.UUID):

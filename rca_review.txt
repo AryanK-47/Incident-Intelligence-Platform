@@ -1,0 +1,233 @@
+﻿diff --git a/app/features/ai_analysis/routers.py b/app/features/ai_analysis/routers.py
+index 1022301..b3f4ddc 100644
+--- a/app/features/ai_analysis/routers.py
++++ b/app/features/ai_analysis/routers.py
+@@ -2,6 +2,7 @@ import uuid
+ 
+ from fastapi import APIRouter, Depends, HTTPException, Path
+ from sqlalchemy.orm import Session
++from pydantic import ValidationError
+ 
+ from app.core.database import get_db
+ from app.features.ai_analysis import service
+@@ -10,15 +11,20 @@ from app.features.ai_analysis.schemas import (
+     AiAnalysisResponse,
+ )
+ from app.features.ai_analysis.versions.schemas import VersionResponse
++from app.features.ai_analysis.rca.telemetry_schemas import TelemetryRCARequest
++from app.core.auth import get_current_user
+ 
+-router = APIRouter()
++router = APIRouter(
++    tags = ['AiAnalysis']
++)
+ 
+ @router.post("/incidents/{incident_id}/ai-analysis",
+             response_model=AiAnalysisResponse
+         )
+ def create_analysis(data : AiAnalysisCreate,
+                     incident_id : uuid.UUID,
+-                    db : Session = Depends(get_db)
++                    db : Session = Depends(get_db),
++                    current_user = Depends(get_current_user)
+                     ):
+     
+     analysis = service.create_analysis(db, incident_id,data)
+@@ -36,7 +42,8 @@ def create_analysis(data : AiAnalysisCreate,
+             )
+ 
+ def get_analysis(incident_id : uuid.UUID,
+-                db : Session = Depends(get_db)
++                db : Session = Depends(get_db),
++                current_user = Depends(get_current_user)
+                 ):
+     analysis = service.get_analysis_with_current_version(db, incident_id)
+ 
+@@ -53,7 +60,8 @@ def get_analysis(incident_id : uuid.UUID,
+ @router.get("/incidents/{incident_id}/ai-analysis/versions",
+             response_model= list[int])
+ def get_available_versions(incident_id : uuid.UUID,
+-                            db : Session = Depends(get_db)
++                            db : Session = Depends(get_db),
++                            current_user = Depends(get_current_user)
+                         ):
+     versions = service.get_available_versions(db, incident_id)
+ 
+@@ -73,7 +81,8 @@ def get_available_versions(incident_id : uuid.UUID,
+ def get_requested_version(
+     incident_id : uuid.UUID,
+     version_number : int = Path(..., ge=1),
+-    db : Session = Depends(get_db)
++    db : Session = Depends(get_db),
++    current_user = Depends(get_current_user)
+     ):
+     version = service.get_requested_version(db, incident_id,version_number)
+ 
+@@ -87,4 +96,41 @@ def get_requested_version(
+                         No such version exists for the given number
+             '''
+         )
+-    return version
+\ No newline at end of file
++    return version
++
++
++
++@router.post(
++    "/incidents/{incident_id}/ai-analysis/from-telemetry",
++    response_model=AiAnalysisResponse,
++)
++def create_analysis_from_telemetry(
++    incident_id: uuid.UUID,
++    data: TelemetryRCARequest,
++    db: Session = Depends(get_db),
++    current_user=Depends(get_current_user),
++):
++    telemetry = [
++        record.model_dump(by_alias=True)
++        for record in data.telemetry
++    ]
++
++    try:
++        analysis = service.create_analysis_from_telemetry(
++            db=db,
++            incident_id=incident_id,
++            telemetry=telemetry,
++        )
++    except ValueError as exc:
++        raise HTTPException(
++            status_code=422,
++            detail=str(exc),
++        ) from exc
++
++    if analysis is None:
++        raise HTTPException(
++            status_code=404,
++            detail="Incident for this id does not exist",
++        )
++
++    return analysis
+diff --git a/app/features/ai_analysis/service.py b/app/features/ai_analysis/service.py
+index dfb5b60..dff8fa6 100644
+--- a/app/features/ai_analysis/service.py
++++ b/app/features/ai_analysis/service.py
+@@ -1,9 +1,12 @@
++import uuid
++from typing import Any
++
+ from sqlalchemy.orm import Session
+ from app.features.ai_analysis import crud
+ from app.features.ai_analysis.schemas import AiAnalysisCreate, AiAnalysisResponse
+-import uuid
+ from app.features.Incident.service import get_incident
+ from app.features.ai_analysis.versions.service import get_version
++from app.features.ai_analysis.rca.inference_service import generate_rca
+ 
+ #This returns a complete analysis
+ def get_analysis(db: Session, incident_id:uuid.UUID):
+@@ -11,7 +14,7 @@ def get_analysis(db: Session, incident_id:uuid.UUID):
+     if incident is None: return None
+     return crud.get_analysis(db,incident_id)
+ 
+-#This retuns current/latest versions number if exist or else none
++#This returns current/latest versions number if exist or else none
+ def get_current_version_number(db:Session, incident_id : uuid.UUID):
+     analysis =get_analysis(db, incident_id)
+     if analysis is None: return None
+@@ -22,23 +25,68 @@ and checks if the analysis for given incident aready exists
+ If it does then simply add a version to this analysis
+ else create analysis as well as the version for it 
+ '''
++
+ def create_analysis(
+-        db : Session,
+-        incident_id : uuid.UUID,
+-        data : AiAnalysisCreate
+-        ):
+-    
++    db: Session,
++    incident_id: uuid.UUID,
++    data: AiAnalysisCreate
++):
+     incident = get_incident(db, incident_id)
+-    if incident is None: return None
++    if incident is None:
++        return None
+ 
+     analysis = get_analysis(db, incident_id)
+ 
+     if analysis is None:
+-        version_number= 1
+-        return crud.create_analysis(db, incident_id,data,version_number)
++        version_number = 1
++        analysis = crud.create_analysis(
++            db, incident_id, data, version_number
++        )
+     else:
+-        version_number = analysis.current_version+1
+-        return crud.add_version(db, analysis.id,data.version,version_number)
++        version_number = analysis.current_version + 1
++        analysis = crud.add_version(
++            db, analysis.id, data.version, version_number
++        )
++
++    if analysis is None:
++        return None
++
++    version = get_version(
++        db, analysis.id, analysis.current_version
++    )
++
++    if version is None:
++        return None
++
++    return AiAnalysisResponse(
++        id=analysis.id,
++        incident_id=analysis.incident_id,
++        version=version,
++        current_version=analysis.current_version
++    )
++
++def create_analysis_from_telemetry(
++    db: Session,
++    incident_id: uuid.UUID,
++    telemetry: list[dict[str, Any]],
++):
++    """
++    Generate an RCA from telemetry and persist it using the
++    existing analysis/versioning flow.
++    """
++    incident = get_incident(db, incident_id)
++    if incident is None:
++        return None
++
++    generated_version = generate_rca(telemetry)
++
++    analysis_data = AiAnalysisCreate(version=generated_version)
++
++    return create_analysis(
++        db=db,
++        incident_id=incident_id,
++        data=analysis_data,
++    )
+ 
+ #This returns the complete ai-analysis which along with the latest version
+ def get_analysis_with_current_version(db : Session , incident_id : uuid.UUID):
+@@ -48,6 +96,9 @@ def get_analysis_with_current_version(db : Session , incident_id : uuid.UUID):
+         return None
+ 
+     version = get_version(db, analysis.id, analysis.current_version)
++
++    if version is None:
++        return None
+     
+     complete_analysis = AiAnalysisResponse(
+             id = analysis.id,
+@@ -75,4 +126,5 @@ def get_requested_version(db : Session, incident_id : uuid.UUID, version_number
+     version = get_version(db, analysis.id, version_number)
+ 
+     if version is None: return None
+-    return version
+\ No newline at end of file
++    return version
++
